@@ -87,6 +87,29 @@ db.Affectation.belongsTo(db.Chantier, {
   as: 'chantier'  // Ce "as" est utilisé dans les include
 })
 
+// Association entre Planning et User
+db.Planning.belongsTo(db.User, {
+  foreignKey: 'id_utilisateur',
+  as: 'user'
+});
+
+// Association entre Planning et Chantier
+db.Planning.belongsTo(db.Chantier, {
+  foreignKey: 'id_chantier',
+  as: 'chantier'
+});
+
+// Si nécessaire, vous pouvez également définir les associations inverses
+db.User.hasMany(db.Planning, {
+  foreignKey: 'id_utilisateur',
+  as: 'plannings'
+});
+
+db.Chantier.hasMany(db.Planning, {
+  foreignKey: 'id_chantier',
+  as: 'plannings'
+});
+
 
 
 module.exports = db;

@@ -23,6 +23,8 @@ exports.findAll = async (req, res) => {
       condition.id_chantier = chantierId;
     }
 
+    console.log("Condition de recherche :", condition); // Ajoutez ce log
+
     const plannings = await Planning.findAll({
       where: condition,
       include: [
@@ -38,9 +40,10 @@ exports.findAll = async (req, res) => {
         }
       ]
     });
-    
+
     res.status(200).json(plannings);
   } catch (error) {
+    console.error("Erreur lors de la récupération des plannings :", error); // Ajoutez ce log
     res.status(500).json({ message: 'Erreur lors de la récupération des plannings', error: error.message });
   }
 };
