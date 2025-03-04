@@ -1,8 +1,18 @@
-"use client"
+"use client";
 
 import { useState, useEffect } from "react";
-
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  addDays,
+  isSameMonth,
+  isSameDay,
+  addMonths,
+  subMonths,
+} from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 // Fonction pour récupérer les employés depuis l'API
-async function fetchEmployes() {
+async function fetchEmployes(): Promise<any[]> {
   const response = await fetch('http://localhost:8080/api/users');
   if (!response.ok) {
     throw new Error('Erreur lors de la récupération des employés');
@@ -22,7 +32,7 @@ async function fetchEmployes() {
 }
 
 // Fonction pour récupérer les affectations depuis l'API
-async function fetchAffectations() {
+async function fetchAffectations(): Promise<any[]> {
   const response = await fetch('http://localhost:8080/api/plannings');
   if (!response.ok) {
     throw new Error('Erreur lors de la récupération des affectations');
@@ -75,10 +85,10 @@ function CalendarCell({
 }
 
 export default function MonthlyCalendar() {
-  const [currentMonth, setCurrentMonth] = useState(new Date(2025, 2, 1));
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date(2025, 2, 1));
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const [employes, setEmployes] = useState([]);
-  const [affectations, setAffectations] = useState([]);
+  const [employes, setEmployes] = useState<any[]>([]);
+  const [affectations, setAffectations] = useState<any[]>([]);
 
   useEffect(() => {
     async function loadData() {
@@ -107,8 +117,8 @@ export default function MonthlyCalendar() {
   const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
   const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
 
-  const rows = [];
-  let days = [];
+  const rows: JSX.Element[] = [];
+  let days: JSX.Element[] = [];
   let day = startDate;
 
   while (day <= endDate) {
