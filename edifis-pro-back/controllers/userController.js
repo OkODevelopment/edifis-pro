@@ -74,17 +74,37 @@ exports.findOne = async (req, res) => {
   }
 };
 
-// Créer un nouvel utilisateur
 exports.create = async (req, res) => {
   try {
+    console.log("Données reçues :", req.body); // Log pour vérifier les données reçues
+
     // Vérifier si l'email existe déjà
     const userExists = await User.findOne({ where: { email: req.body.email } });
     if (userExists) {
       return res.status(400).json({ message: 'Cet email est déjà utilisé' });
     }
 
+    // Vérifier que le tableau de compétences n'est pas vide
+    if (!Array.isArray(req.body.competences) || req.body.competences.length === 0) {
+      return res.status(400).json({ message: 'L\'utilisateur doit avoir au moins une compétence' });
+    }
+
+    // Vérifier que chaque compétence existe
+    for (const comp of req.body.competences) {
+      const competenceExists = await Competence.findByPk(comp);
+      if (!competenceExists) {
+        return res.status(400).json({ message: `La compétence avec l'ID ${comp} n'existe pas` });
+      }
+    }
+
     // Hasher le mot de passe
     const hashedPassword = await bcrypt.hash(req.body.password, 10);
+
+    // Convertir id_droit en entier
+    const idDroit = parseInt(req.body.id_droit, 10);
+    if (isNaN(idDroit)) {
+      return res.status(400).json({ message: 'Le champ id_droit doit être un nombre entier' });
+    }
 
     // Créer l'utilisateur
     const user = await User.create({
@@ -92,18 +112,16 @@ exports.create = async (req, res) => {
       prenom: req.body.prenom,
       email: req.body.email,
       password: hashedPassword,
-      id_droit: req.body.id_droit
+      id_droit: idDroit // Utiliser l'entier converti
     });
 
     // Ajouter les compétences si fournies
-    if (req.body.competences && Array.isArray(req.body.competences)) {
-      for (const comp of req.body.competences) {
-        await db.UserCompetence.create({
-          id_utilisateur: user.id,
-          id_competence: comp.id,
-          niveau: comp.niveau || 1
-        });
-      }
+    for (const comp of req.body.competences) {
+      await db.UserCompetence.create({
+        id_utilisateur: user.id,
+        id_competence: comp,
+        niveau: 1 // Vous pouvez ajuster ce niveau selon vos besoins
+      });
     }
 
     res.status(201).json({
@@ -117,6 +135,7 @@ exports.create = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error("Erreur lors de la création de l'utilisateur:", error); // Log de l'erreur
     res.status(500).json({ message: 'Erreur lors de la création de l\'utilisateur', error: error.message });
   }
 };

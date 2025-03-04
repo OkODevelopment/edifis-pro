@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Building, Plus, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,45 +10,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 
-// Données fictives pour la démonstration
-const chantiersMock = [
-  {
-    id: 1,
-    nom: "Hangar Industriel",
-    description: "Construction d'un hangar industriel de 2000m²",
-    date_deb: "2025-03-01",
-    date_fin: "2025-06-15",
-    adresse: "15 rue des Industries, Bordeaux"
-  },
-  {
-    id: 2,
-    nom: "Bureaux Modernes",
-    description: "Rénovation complète d'un immeuble de bureaux",
-    date_deb: "2025-02-15",
-    date_fin: "2025-05-30",
-    adresse: "8 avenue des Affaires, Toulouse"
-  },
-  {
-    id: 3,
-    nom: "Magasin Central",
-    description: "Construction d'un magasin commercial",
-    date_deb: "2025-01-10",
-    date_fin: "2025-04-20",
-    adresse: "22 rue du Commerce, Lyon"
-  },
-  {
-    id: 4,
-    nom: "Entrepôt Logistique",
-    description: "Agrandissement d'un entrepôt existant",
-    date_deb: "2025-03-05",
-    date_fin: "2025-07-15",
-    adresse: "5 boulevard Maritime, Marseille"
-  }
-]
-
 export default function ChantiersPage() {
   const { toast } = useToast()
-  const [chantiers, setChantiers] = useState(chantiersMock)
+  const [chantiers, setChantiers] = useState([])
   const [searchTerm, setSearchTerm] = useState("")
   const [newChantier, setNewChantier] = useState({
     nom: "",
@@ -58,8 +22,29 @@ export default function ChantiersPage() {
     adresse: ""
   })
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const filteredChantiers = chantiers.filter(chantier => 
+  useEffect(() => {
+    const fetchChantiers = async () => {
+      try {
+        const response = await fetch("http://localhost:8080/api/chantiers")
+        if (!response.ok) {
+          throw new Error("Erreur lors de la récupération des chantiers.")
+        }
+        const data = await response.json()
+        setChantiers(data)
+      } catch (error) {
+        toast({ title: "Erreur", description: "Impossible de charger les chantiers." })
+        console.error(error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchChantiers()
+  }, [toast])
+
+  const filteredChantiers = chantiers.filter(chantier =>
     chantier.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
     chantier.adresse.toLowerCase().includes(searchTerm.toLowerCase())
   )
@@ -69,9 +54,9 @@ export default function ChantiersPage() {
     setNewChantier(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Validation basique
     if (!newChantier.nom || !newChantier.date_deb || !newChantier.adresse) {
       toast({
@@ -82,24 +67,41 @@ export default function ChantiersPage() {
       return
     }
 
-    // Ajouter le nouveau chantier
-    const newId = Math.max(...chantiers.map(c => c.id)) + 1
-    setChantiers([...chantiers, { ...newChantier, id: newId }])
-    
-    // Réinitialiser le formulaire et fermer la boîte de dialogue
-    setNewChantier({
-      nom: "",
-      description: "",
-      date_deb: "",
-      date_fin: "",
-      adresse: ""
+    const response = await fetch("http://localhost:8080/api/chantiers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newChantier)
     })
-    setIsDialogOpen(false)
-    
-    toast({
-      title: "Chantier créé",
-      description: `Le chantier "${newChantier.nom}" a été créé avec succès.`,
-    })
+
+    if (response.ok) {
+      const createdChantier = await response.json()
+      setChantiers([...chantiers, createdChantier])
+
+      // Réinitialiser le formulaire et fermer la boîte de dialogue
+      setNewChantier({
+        nom: "",
+        description: "",
+        date_deb: "",
+        date_fin: "",
+        adresse: ""
+      })
+      setIsDialogOpen(false)
+
+      toast({
+        title: "Chantier créé",
+        description: `Le chantier "${newChantier.nom}" a été créé avec succès.`,
+      })
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Échec de la création du chantier.",
+      })
+    }
+  }
+
+  if (loading) {
+    return <div className="text-center py-10">Chargement des chantiers...</div>
   }
 
   return (

@@ -1,87 +1,119 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { HardHat, Plus, Search, Trash } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-import { useToast } from "@/components/ui/use-toast"
+import { useState, useEffect } from "react";
+import { HardHat, Plus, Search, Trash } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { useToast } from "@/components/ui/use-toast";
 
-// Données fictives pour la démonstration
-const competencesMock = [
-  { id: 1, libelle: "Maçonnerie" },
-  { id: 2, libelle: "Charpente" },
-  { id: 3, libelle: "Électricité" },
-  { id: 4, libelle: "Plomberie" },
-  { id: 5, libelle: "Carrelage" },
-  { id: 6, libelle: "Peinture" },
-  { id: 7, libelle: "Plâtrerie" },
-  { id: 8, libelle: "Couverture" },
-  { id: 9, libelle: "Domotique" },
-  { id: 10, libelle: "Chauffage" }
-]
+// Fonction pour récupérer les compétences depuis l'API
+async function fetchCompetences(): Promise<any[]> {
+  const response = await fetch('http://localhost:8080/api/competences');
+  if (!response.ok) {
+    throw new Error('Erreur lors de la récupération des compétences');
+  }
+  return response.json();
+}
+
+// Fonction pour ajouter une nouvelle compétence
+async function addCompetence(libelle: string): Promise<void> {
+  const response = await fetch('http://localhost:8080/api/competences', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ libelle }),
+  });
+  if (!response.ok) {
+    throw new Error('Erreur lors de la création de la compétence');
+  }
+}
+
+// Fonction pour supprimer une compétence
+async function deleteCompetence(id: number): Promise<void> {
+  const response = await fetch(`http://localhost:8080/api/competences/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error('Erreur lors de la suppression de la compétence');
+  }
+}
 
 export default function CompetencesPage() {
-  const { toast } = useToast()
-  const [competences, setCompetences] = useState(competencesMock)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [newCompetence, setNewCompetence] = useState("")
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const { toast } = useToast();
+  const [competences, setCompetences] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [newCompetence, setNewCompetence] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const filteredCompetences = competences.filter(competence => 
+  useEffect(() => {
+    async function loadCompetences() {
+      try {
+        const competencesData = await fetchCompetences();
+        setCompetences(competencesData);
+      } catch (error) {
+        console.error('Erreur lors du chargement des compétences:', error);
+      }
+    }
+    loadCompetences();
+  }, []);
+
+  const filteredCompetences = competences.filter(competence =>
     competence.libelle.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  );
 
-  const handleAddCompetence = (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const handleAddCompetence = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     if (!newCompetence.trim()) {
       toast({
         variant: "destructive",
         title: "Erreur de validation",
         description: "Veuillez saisir un libellé pour la compétence.",
-      })
-      return
+      });
+      return;
     }
-    
-    // Vérifier si la compétence existe déjà
-    if (competences.some(c => c.libelle.toLowerCase() === newCompetence.toLowerCase())) {
+
+    try {
+      await addCompetence(newCompetence);
+      setCompetences([...competences, { id: Math.max(...competences.map(c => c.id)) + 1, libelle: newCompetence }]);
+      setNewCompetence("");
+      setIsDialogOpen(false);
+      toast({
+        title: "Compétence créée",
+        description: `La compétence "${newCompetence}" a été créée avec succès.`,
+      });
+    } catch (error) {
+      console.error('Erreur lors de la création de la compétence:', error);
       toast({
         variant: "destructive",
-        title: "Erreur de validation",
-        description: "Cette compétence existe déjà.",
-      })
-      return
+        title: "Erreur",
+        description: "Une erreur est survenue lors de la création de la compétence.",
+      });
     }
-    
-    // Ajouter la nouvelle compétence
-    const newId = Math.max(...competences.map(c => c.id)) + 1
-    setCompetences([...competences, { id: newId, libelle: newCompetence }])
-    
-    // Réinitialiser le formulaire et fermer la boîte de dialogue
-    setNewCompetence("")
-    setIsDialogOpen(false)
-    
-    toast({
-      title: "Compétence créée",
-      description: `La compétence "${newCompetence}" a été créée avec succès.`,
-    })
-  }
+  };
 
-  const handleDeleteCompetence = (id: number) => {
-    // Dans une vraie application, on vérifierait si la compétence est utilisée
-    // avant de la supprimer
-    
-    setCompetences(competences.filter(c => c.id !== id))
-    
-    toast({
-      title: "Compétence supprimée",
-      description: "La compétence a été supprimée avec succès.",
-    })
-  }
+  const handleDeleteCompetence = async (id: number) => {
+    try {
+      await deleteCompetence(id);
+      setCompetences(competences.filter(c => c.id !== id));
+      toast({
+        title: "Compétence supprimée",
+        description: "La compétence a été supprimée avec succès.",
+      });
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la compétence:', error);
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Une erreur est survenue lors de la suppression de la compétence.",
+      });
+    }
+  };
 
   return (
     <div className="container py-8">
@@ -182,5 +214,5 @@ export default function CompetencesPage() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

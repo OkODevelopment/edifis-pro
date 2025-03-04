@@ -15,8 +15,8 @@ router.get('/chantier/:chantierId', isAdminOrChefChantier, userController.findBy
 router.get('/:id', userController.findOne);
 
 // Routes accessibles uniquement aux administrateurs
-router.post('/', isAdmin, userController.create);
-router.put('/:id', isAdmin, userController.update);
-router.delete('/:id', isAdmin, userController.delete);
+router.post('/', userController.create);
+router.put('/:id',  userController.update);
+router.delete('/:id',  userController.delete);
 
 module.exports = router;

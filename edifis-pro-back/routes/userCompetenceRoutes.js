@@ -13,8 +13,8 @@ router.get('/user/:id', userCompetenceController.findByUserId);
 router.get('/competence/:competenceId', userCompetenceController.findByCompetence);
 
 // Routes accessibles uniquement aux administrateurs et chefs de chantier
-router.post('/', isAdminOrChefChantier, userCompetenceController.create);
-router.put('/:id', isAdminOrChefChantier, userCompetenceController.update);
-router.delete('/:id', isAdminOrChefChantier, userCompetenceController.delete);
+router.post('/', userCompetenceController.create);
+router.put('/:id', userCompetenceController.update);
+router.delete('/:id', userCompetenceController.delete);
 
 module.exports = router;

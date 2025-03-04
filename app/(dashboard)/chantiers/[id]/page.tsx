@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Building, Calendar, Edit, MapPin, Plus, Trash, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -14,118 +14,128 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 
-// Données fictives pour la démonstration
-const chantiersMock = [
-  {
-    id: 1,
-    nom: "Hangar Industriel",
-    description: "Construction d'un hangar industriel de 2000m²",
-    date_deb: "2025-03-01",
-    date_fin: "2025-06-15",
-    adresse: "15 rue des Industries, Bordeaux"
-  },
-  {
-    id: 2,
-    nom: "Bureaux Modernes",
-    description: "Rénovation complète d'un immeuble de bureaux",
-    date_deb: "2025-02-15",
-    date_fin: "2025-05-30",
-    adresse: "8 avenue des Affaires, Toulouse"
-  },
-  {
-    id: 3,
-    nom: "Magasin Central",
-    description: "Construction d'un magasin commercial",
-    date_deb: "2025-01-10",
-    date_fin: "2025-04-20",
-    adresse: "22 rue du Commerce, Lyon"
-  },
-  {
-    id: 4,
-    nom: "Entrepôt Logistique",
-    description: "Agrandissement d'un entrepôt existant",
-    date_deb: "2025-03-05",
-    date_fin: "2025-07-15",
-    adresse: "5 boulevard Maritime, Marseille"
-  }
-]
-
-const employesMock = [
-  { id: 1, nom: "Dupont", prenom: "Martin", competences: ["Maçonnerie", "Charpente"] },
-  { id: 2, nom: "Lefebvre", prenom: "Sophie", competences: ["Électricité", "Plomberie"] },
-  { id: 3, nom: "Moreau", prenom: "Jean", competences: ["Maçonnerie", "Carrelage"] },
-  { id: 4, nom: "Bernard", prenom: "Lucie", competences: ["Peinture", "Plâtrerie"] },
-  { id: 5, nom: "Petit", prenom: "Thomas", competences: ["Charpente", "Couverture"] },
-  { id: 6, nom: "Martin", prenom: "Pierre", competences: ["Électricité", "Domotique"] },
-  { id: 7, nom: "Dubois", prenom: "Marie", competences: ["Plomberie", "Chauffage"] }
-]
-
-const affectationsMock = [
-  { id: 1, id_utilisateur: 1, id_chantier: 1, date: "2025-03-15" },
-  { id: 2, id_utilisateur: 2, id_chantier: 1, date: "2025-03-15" },
-  { id: 3, id_utilisateur: 3, id_chantier: 1, date: "2025-03-16" },
-  { id: 4, id_utilisateur: 4, id_chantier: 1, date: "2025-03-17" },
-  { id: 5, id_utilisateur: 5, id_chantier: 1, date: "2025-03-18" }
-]
-
 export default function ChantierDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
   const chantierIdStr = params.id as string
   const chantierId = parseInt(chantierIdStr)
-  
-  const chantier = chantiersMock.find(c => c.id === chantierId)
-  
+
+  const [chantier, setChantier] = useState(null)
+  const [employes, setEmployes] = useState([])
+  const [affectations, setAffectations] = useState([])
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [editedChantier, setEditedChantier] = useState(chantier)
-  const [affectations, setAffectations] = useState(affectationsMock.filter(a => a.id_chantier === chantierId))
+  const [editedChantier, setEditedChantier] = useState(null)
   const [newAffectation, setNewAffectation] = useState({
     id_utilisateur: "",
     date: ""
   })
   const [isAffectationDialogOpen, setIsAffectationDialogOpen] = useState(false)
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [chantierRes, employesRes, affectationsRes] = await Promise.all([
+          fetch(`http://localhost:8080/api/chantiers/${chantierId}`),
+          fetch("http://localhost:8080/api/users"),
+          fetch(`http://localhost:8080/api/affectations/chantier/${chantierId}`)
+        ])
+
+        if (!chantierRes.ok || !employesRes.ok || !affectationsRes.ok) {
+          throw new Error("Erreur lors de la récupération des données.")
+        }
+
+        const chantierData = await chantierRes.json()
+        const employesData = await employesRes.json()
+        const affectationsData = await affectationsRes.json()
+
+        setChantier(chantierData)
+        setEmployes(employesData)
+        setAffectations(affectationsData)
+        setEditedChantier(chantierData)
+      } catch (error) {
+        toast({ title: "Erreur", description: "Impossible de charger les données." })
+        console.error(error)
+      }
+    }
+
+    fetchData()
+  }, [chantierId, toast])
+
   if (!chantier) {
     return (
       <div className="container py-8">
-        <h1 className="text-2xl font-bold">Chantier non trouvé</h1>
-        <Button onClick={() => router.push("/chantiers")} className="mt-4">
-          Retour à la liste des chantiers
-        </Button>
+        <h1 className="text-2xl font-bold">Chargement...</h1>
       </div>
     )
   }
 
   const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setEditedChantier(prev => ({ ...prev!, [name]: value }))
+    setEditedChantier(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Ici, on simulerait la mise à jour dans la base de données
-    // Pour la démo, on affiche juste un toast
-    
-    setIsEditDialogOpen(false)
-    
-    toast({
-      title: "Chantier mis à jour",
-      description: `Les informations du chantier "${editedChantier!.nom}" ont été mises à jour.`,
-    })
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/chantiers/${chantierId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editedChantier)
+      })
+
+      if (response.ok) {
+        setIsEditDialogOpen(false)
+        setChantier(editedChantier)
+        toast({
+          title: "Chantier mis à jour",
+          description: `Les informations du chantier "${editedChantier.nom}" ont été mises à jour.`,
+        })
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erreur",
+          description: "Échec de la mise à jour du chantier.",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Une erreur s'est produite lors de la mise à jour du chantier.",
+      })
+      console.error(error)
+    }
   }
 
-  const handleDeleteChantier = () => {
-    // Ici, on simulerait la suppression dans la base de données
-    // Pour la démo, on redirige vers la liste des chantiers
-    
-    toast({
-      title: "Chantier supprimé",
-      description: `Le chantier "${chantier.nom}" a été supprimé.`,
-    })
-    
-    router.push("/chantiers")
+  const handleDeleteChantier = async () => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/chantiers/${chantierId}`, {
+        method: "DELETE"
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Chantier supprimé",
+          description: `Le chantier "${chantier.nom}" a été supprimé.`,
+        })
+        router.push("/chantiers")
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erreur",
+          description: "Échec de la suppression du chantier.",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Une erreur s'est produite lors de la suppression du chantier.",
+      })
+      console.error(error)
+    }
   }
 
   const handleAffectationInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,9 +147,9 @@ export default function ChantierDetailPage() {
     setNewAffectation(prev => ({ ...prev, id_utilisateur: value }))
   }
 
-  const handleAffectationSubmit = (e: React.FormEvent) => {
+  const handleAffectationSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!newAffectation.id_utilisateur || !newAffectation.date) {
       toast({
         variant: "destructive",
@@ -148,58 +158,69 @@ export default function ChantierDetailPage() {
       })
       return
     }
-    
-    // Vérifier si l'employé est déjà affecté à ce chantier à cette date
-    const employeId = parseInt(newAffectation.id_utilisateur)
-    const existingAffectation = affectations.find(
-      a => a.id_utilisateur === employeId && a.date === newAffectation.date
-    )
-    
-    if (existingAffectation) {
+
+    try {
+      const response = await fetch("http://localhost:8080/api/affectations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...newAffectation, id_chantier: chantierId })
+      })
+
+      if (response.ok) {
+        const newAffectationData = await response.json()
+        setAffectations([...affectations, newAffectationData])
+        setNewAffectation({ id_utilisateur: "", date: "" })
+        setIsAffectationDialogOpen(false)
+
+        const employe = employes.find(e => e.id === parseInt(newAffectation.id_utilisateur))
+        toast({
+          title: "Affectation créée",
+          description: `${employe?.prenom} ${employe?.nom} a été affecté au chantier pour le ${new Date(newAffectation.date).toLocaleDateString()}.`,
+        })
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erreur",
+          description: "Échec de la création de l'affectation.",
+        })
+      }
+    } catch (error) {
       toast({
         variant: "destructive",
-        title: "Affectation impossible",
-        description: "Cet employé est déjà affecté à ce chantier à cette date.",
+        title: "Erreur",
+        description: "Une erreur s'est produite lors de la création de l'affectation.",
       })
-      return
+      console.error(error)
     }
-    
-    // Vérifier si l'employé est déjà affecté à un autre chantier à cette date
-    // (Dans une vraie application, cette vérification serait faite côté serveur)
-    
-    // Ajouter la nouvelle affectation
-    const newId = Math.max(...affectations.map(a => a.id)) + 1
-    const newAffectationObj = {
-      id: newId,
-      id_utilisateur: employeId,
-      id_chantier: chantierId,
-      date: newAffectation.date
-    }
-    
-    setAffectations([...affectations, newAffectationObj])
-    
-    // Réinitialiser le formulaire et fermer la boîte de dialogue
-    setNewAffectation({
-      id_utilisateur: "",
-      date: ""
-    })
-    setIsAffectationDialogOpen(false)
-    
-    const employe = employesMock.find(e => e.id === employeId)
-    
-    toast({
-      title: "Affectation créée",
-      description: `${employe?.prenom} ${employe?.nom} a été affecté au chantier pour le ${new Date(newAffectation.date).toLocaleDateString()}.`,
-    })
   }
 
-  const handleDeleteAffectation = (affectationId: number) => {
-    setAffectations(affectations.filter(a => a.id !== affectationId))
-    
-    toast({
-      title: "Affectation supprimée",
-      description: "L'affectation a été supprimée avec succès.",
-    })
+  const handleDeleteAffectation = async (affectationId: number) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/affectations/${affectationId}`, {
+        method: "DELETE"
+      })
+
+      if (response.ok) {
+        setAffectations(affectations.filter(a => a.id !== affectationId))
+        toast({
+          title: "Affectation supprimée",
+          description: "L'affectation a été supprimée avec succès.",
+        })
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erreur",
+          description: "Échec de la suppression de l'affectation.",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Une erreur s'est produite lors de la suppression de l'affectation.",
+      })
+      console.error(error)
+    }
   }
 
   return (
@@ -321,7 +342,7 @@ export default function ChantierDetailPage() {
             </AlertDialog>
           </div>
         </div>
-        
+
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
@@ -353,7 +374,7 @@ export default function ChantierDetailPage() {
               )}
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -386,7 +407,7 @@ export default function ChantierDetailPage() {
                               <SelectValue placeholder="Sélectionner un employé" />
                             </SelectTrigger>
                             <SelectContent>
-                              {employesMock.map((employe) => (
+                              {employes.map((employe) => (
                                 <SelectItem key={employe.id} value={employe.id.toString()}>
                                   {employe.prenom} {employe.nom}
                                 </SelectItem>
@@ -425,7 +446,7 @@ export default function ChantierDetailPage() {
               ) : (
                 <div className="space-y-4">
                   {affectations.map((affectation) => {
-                    const employe = employesMock.find(e => e.id === affectation.id_utilisateur)
+                    const employe = employes.find(e => e.id === affectation.id_utilisateur)
                     return (
                       <div key={affectation.id} className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -452,7 +473,7 @@ export default function ChantierDetailPage() {
             </CardContent>
           </Card>
         </div>
-        
+
         <Tabs defaultValue="planning" className="space-y-4">
           <TabsList>
             <TabsTrigger value="planning">Planning</TabsTrigger>
@@ -471,7 +492,6 @@ export default function ChantierDetailPage() {
                   <p className="text-sm text-muted-foreground">Aucune affectation planifiée.</p>
                 ) : (
                   <div className="space-y-4">
-                    {/* Grouper les affectations par date */}
                     {Array.from(new Set(affectations.map(a => a.date))).sort().map(date => (
                       <div key={date} className="space-y-2">
                         <h3 className="font-medium">{new Date(date).toLocaleDateString()}</h3>
@@ -479,16 +499,15 @@ export default function ChantierDetailPage() {
                           {affectations
                             .filter(a => a.date === date)
                             .map(affectation => {
-                              const employe = employesMock.find(e => e.id === affectation.id_utilisateur)
+                              const employe = employes.find(e => e.id === affectation.id_utilisateur)
                               return (
                                 <div key={affectation.id} className="flex items-center justify-between p-3 border-b last:border-0">
                                   <div className="flex items-center gap-2">
                                     <Users className="h-4 w-4 text-muted-foreground" />
                                     <span>{employe?.prenom} {employe?.nom}</span>
                                   </div>
-                                  <div className="text-sm text-muted-foreground">
-                                    {employe?.competences.join(", ")}
-                                  </div>
+                                  
+
                                 </div>
                               )
                             })}
@@ -513,11 +532,10 @@ export default function ChantierDetailPage() {
                   <p className="text-sm text-muted-foreground">Aucun employé affecté à ce chantier.</p>
                 ) : (
                   <div className="space-y-4">
-                    {/* Afficher les employés uniques */}
                     {Array.from(new Set(affectations.map(a => a.id_utilisateur))).map(employeId => {
-                      const employe = employesMock.find(e => e.id === employeId)
+                      const employe = employes.find(e => e.id === employeId)
                       const employeAffectations = affectations.filter(a => a.id_utilisateur === employeId)
-                      
+
                       return (
                         <div key={employeId} className="rounded-md border p-4">
                           <div className="flex items-center justify-between mb-2">
@@ -531,12 +549,6 @@ export default function ChantierDetailPage() {
                           </div>
                           <Separator className="my-2" />
                           <div className="grid grid-cols-2 gap-2 mt-2">
-                            <div>
-                              <p className="text-sm font-medium">Compétences</p>
-                              <p className="text-sm text-muted-foreground">
-                                {employe?.competences.join(", ")}
-                              </p>
-                            </div>
                             <div>
                               <p className="text-sm font-medium">Dates d'affectation</p>
                               <p className="text-sm text-muted-foreground">

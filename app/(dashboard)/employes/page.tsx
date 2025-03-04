@@ -39,7 +39,8 @@ export default function EmployesPage() {
     prenom: "",
     email: "",
     password: "",
-    competences: [] as number[]
+    competences: [] as number[],
+    id_droit: 1 // Valeur par défaut pour "Admin"
   })
 
   useEffect(() => {
@@ -98,7 +99,7 @@ export default function EmployesPage() {
     employe.competences.some(comp => comp.libelle.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setNewEmploye(prev => ({ ...prev, [name]: value }))
   }
@@ -128,7 +129,7 @@ export default function EmployesPage() {
       if (res.ok) {
         toast({ title: "Employé créé", description: "L'employé a été ajouté avec succès." })
         setIsDialogOpen(false)
-        setNewEmploye({ nom: "", prenom: "", email: "", password: "", competences: [] })
+        setNewEmploye({ nom: "", prenom: "", email: "", password: "", competences: [], id_droit: 1 })
         return fetch("http://localhost:8080/api/users").then(res => res.json()).then(data => setEmployes(data))
       } else {
         toast({ variant: "destructive", title: "Erreur", description: "Échec de la création." })
@@ -158,6 +159,13 @@ export default function EmployesPage() {
                 <Input name="prenom" placeholder="Prénom" value={newEmploye.prenom} onChange={handleInputChange} />
                 <Input name="email" placeholder="Email" value={newEmploye.email} onChange={handleInputChange} />
                 <Input name="password" type="password" placeholder="Mot de passe" value={newEmploye.password} onChange={handleInputChange} />
+                <div>
+                  <Label>Droits</Label>
+                  <select name="id_droit" value={newEmploye.id_droit} onChange={handleInputChange}>
+                    <option value={1}>Admin</option>
+                    <option value={2}>Chef de chantier</option>
+                  </select>
+                </div>
                 <div>
                   <Label>Compétences</Label>
                   {competences.map(c => (
