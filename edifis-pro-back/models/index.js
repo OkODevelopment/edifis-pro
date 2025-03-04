@@ -67,4 +67,26 @@ db.Chantier.belongsToMany(db.User, {
   as: 'PlanningUsers'
 });
 
+db.UserCompetence.belongsTo(db.User, {
+  foreignKey: 'id_utilisateur',
+  as: 'user'  // Si tu fais un include avec `as: 'user'`
+})
+
+db.UserCompetence.belongsTo(db.Competence, {
+  foreignKey: 'id_competence',
+  as: 'competence'  // Ce "as" doit matcher ton include
+})
+
+db.Affectation.belongsTo(db.User, { 
+  foreignKey: 'id_utilisateur', 
+  as: 'user'  // Ce "as" est utilisé dans les include
+})
+
+db.Affectation.belongsTo(db.Chantier, { 
+  foreignKey: 'id_chantier', 
+  as: 'chantier'  // Ce "as" est utilisé dans les include
+})
+
+
+
 module.exports = db;

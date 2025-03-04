@@ -20,7 +20,6 @@ exports.findAll = async (req, res) => {
         }
       ]
     });
-    
     res.status(200).json(userCompetences);
   } catch (error) {
     res.status(500).json({ message: 'Erreur lors de la récupération des associations utilisateur-compétence', error: error.message });
@@ -184,3 +183,29 @@ exports.findByCompetence = async (req, res) => {
     res.status(500).json({ message: 'Erreur lors de la récupération des utilisateurs ayant cette compétence', error: error.message });
   }
 };
+
+// Nouvelle méthode pour récupérer les compétences d'un utilisateur par son ID
+exports.findByUserId = async (req, res) => {
+  try {
+    console.log("req.params.id", req.params.id)
+    const id_utilisateur = req.params.id // <-- correspond à /api/user-competences/:id
+
+    const userCompetences = await UserCompetence.findAll({
+      where: { id_utilisateur },
+      include: [
+        {
+          model: Competence,
+          as: 'competence',  // Ici, Sequelize a besoin que 'competence' soit bien déclaré dans les associations.
+          attributes: ['id', 'libelle']
+        }
+      ]
+    })    
+
+    res.status(200).json(userCompetences)
+  } catch (error) {
+    res.status(500).json({
+      message: `Erreur lors de la récupération des compétences pour l'utilisateur ${req.params.id}`,
+      error: error.message
+    })
+  }
+}

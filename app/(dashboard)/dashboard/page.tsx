@@ -1,8 +1,22 @@
+"use client";
+
+import { useSession } from "next-auth/react"
+import { useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CalendarIcon, Users, Building, AlertTriangle } from "lucide-react"
 
 export default function DashboardPage() {
+  const { data: session, status } = useSession()
+
+  // Affiche la session dans la console pour debug
+  useEffect(() => {
+    if (status === "authenticated") {
+      console.log("✅ Utilisateur connecté :", session)
+    } else if (status === "unauthenticated") {
+      console.log("❌ Aucun utilisateur connecté.")
+    }
+  }, [session, status])
   return (
     <div className="container py-8">
       <div className="flex flex-col gap-4 md:gap-8">

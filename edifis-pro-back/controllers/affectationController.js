@@ -147,21 +147,24 @@ exports.delete = async (req, res) => {
 exports.findByUser = async (req, res) => {
   try {
     const id_utilisateur = req.params.userId;
-    
+
     const affectations = await Affectation.findAll({
       where: { id_utilisateur },
       include: [
         {
-          model: Chantier,
-          as: 'chantier',
-          attributes: ['id', 'nom', 'date_deb', 'date_fin', 'adresse', 'statut']
+          model: db.Chantier,  // Utilise bien le modèle importé
+          as: 'chantier',      // Doit correspondre au "as" défini dans la relation
+          attributes: ['id', 'nom', 'adresse']
         }
       ]
     });
-    
+
     res.status(200).json(affectations);
   } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la récupération des affectations par utilisateur', error: error.message });
+    res.status(500).json({ 
+      message: 'Erreur lors de la récupération des affectations par utilisateur', 
+      error: error.message 
+    });
   }
 };
 

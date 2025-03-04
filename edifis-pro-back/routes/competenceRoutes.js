@@ -4,7 +4,7 @@ const competenceController = require('../controllers/competenceController');
 const { verifyToken, isAdmin, isAdminOrChefChantier } = require('../middleware/authMiddleware');
 
 // Routes protégées par authentification
-router.use(verifyToken);
+
 
 // Routes accessibles à tous les utilisateurs authentifiés
 router.get('/', competenceController.findAll);

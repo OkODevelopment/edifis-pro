@@ -4,12 +4,12 @@ const userCompetenceController = require('../controllers/userCompetenceControlle
 const { verifyToken, isAdmin, isAdminOrChefChantier } = require('../middleware/authMiddleware');
 
 // Routes protégées par authentification
-router.use(verifyToken);
+
 
 // Routes accessibles à tous les utilisateurs authentifiés
 router.get('/', userCompetenceController.findAll);
 router.get('/:id', userCompetenceController.findOne);
-router.get('/utilisateur/:userId', userCompetenceController.findByUser);
+router.get('/user/:id', userCompetenceController.findByUserId);
 router.get('/competence/:competenceId', userCompetenceController.findByCompetence);
 
 // Routes accessibles uniquement aux administrateurs et chefs de chantier
