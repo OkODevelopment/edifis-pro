@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import { useSession } from "next-auth/react"
 import { useEffect, useState } from "react"
@@ -42,7 +42,6 @@ export default function DashboardPage() {
     if (status === "authenticated") {
       console.log("✅ Utilisateur connecté :", session)
     } else if (status === "unauthenticated") {
-      // Rediriger l'utilisateur vers la page de connexion sur la ligne suivante (/login)
       router.push("/login")
     }
   }, [session, status])
@@ -75,12 +74,21 @@ export default function DashboardPage() {
     fetchData()
   }, [])
 
-  const chantiersActifs = chantiers.filter(chantier => new Date(chantier.date_fin) >= new Date())
+  const chantiersActifs = chantiers.filter(chantier => chantier.date_fin && new Date(chantier.date_fin) >= new Date())
   const affectationsAujourdhui = affectations.filter(affectation => new Date(affectation.date).toDateString() === new Date().toDateString())
-  const conflitsAffectation = affectations.filter(affectation => {
-    const autresAffectations = affectations.filter(a => a.id_utilisateur === affectation.id_utilisateur && a.date === affectation.date)
-    return autresAffectations.length > 1
-  })
+
+  // Regrouper les affectations par employé et par date
+  const affectationsParEmployeEtDate = affectations.reduce((acc, affectation) => {
+    const key = `${affectation.id_utilisateur}-${affectation.date}`
+    if (!acc[key]) {
+      acc[key] = []
+    }
+    acc[key].push(affectation)
+    return acc
+  }, {} as Record<string, Affectation[]>)
+
+  // Vérifier les conflits
+  const conflitsAffectation = Object.values(affectationsParEmployeEtDate).filter(affectations => affectations.length > 1)
 
   return (
     <div className="container py-8">
@@ -226,22 +234,25 @@ export default function DashboardPage() {
                     <div>Chantiers en conflit</div>
                     <div>Date</div>
                   </div>
-                  <div className="divide-y divide-border rounded-md border">
-                    {conflitsAffectation.map((affectation) => {
-                      const employe = employes.find(e => e.id === affectation.id_utilisateur)
-                      const chantiersEnConflit = affectations
-                        .filter(a => a.id_utilisateur === affectation.id_utilisateur && a.date === affectation.date)
-                        .map(a => chantiers.find(c => c.id === a.id_chantier)?.nom)
-                        .join(", ")
-                      return (
-                        <div key={affectation.id} className="grid grid-cols-3 gap-4 p-4">
-                          <div>{employe?.prenom} {employe?.nom}</div>
-                          <div>{chantiersEnConflit}</div>
-                          <div>{new Date(affectation.date).toLocaleDateString()}</div>
-                        </div>
-                      )
-                    })}
-                  </div>
+                  {conflitsAffectation.length > 0 ? (
+                    <div className="divide-y divide-border rounded-md border">
+                      {conflitsAffectation.map((affectations, index) => {
+                        const employe = employes.find(e => e.id === affectations[0].id_utilisateur)
+                        const chantiersEnConflit = affectations
+                          .map(a => chantiers.find(c => c.id === a.id_chantier)?.nom)
+                          .join(", ")
+                        return (
+                          <div key={index} className="grid grid-cols-3 gap-4 p-4">
+                            <div>{employe?.prenom} {employe?.nom}</div>
+                            <div>{chantiersEnConflit}</div>
+                            <div>{new Date(affectations[0].date).toLocaleDateString()}</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-4 text-center text-gray-500">Pas de conflit détecté</div>
+                  )}
                 </div>
               </CardContent>
             </Card>

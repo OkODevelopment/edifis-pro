@@ -27,7 +27,7 @@ interface Affectation {
   id_utilisateur: number;
   id_chantier: number;
   date: string;
-  role?: string; // Ajout du rôle comme propriété optionnelle
+  role?: string;
 }
 
 interface Chantier {
@@ -44,7 +44,7 @@ export default function ChantierDetailPage() {
   const router = useRouter();
   const { toast } = useToast();
   const chantierId = parseInt(params.id, 10);
-  const { data: session, status } = useSession()
+  const { data: session, status } = useSession();
 
   const [chantier, setChantier] = useState<Chantier | null>(null);
   const [employes, setEmployes] = useState<Employe[]>([]);
@@ -54,20 +54,20 @@ export default function ChantierDetailPage() {
   const [newAffectation, setNewAffectation] = useState({
     id_utilisateur: "",
     date: "",
-    role: "" // Ajout du rôle dans l'état initial
+    role: ""
   });
   const [isAffectationDialogOpen, setIsAffectationDialogOpen] = useState(false);
 
-
   useEffect(() => {
     if (status === "authenticated") {
-      console.log("✅ Utilisateur connecté :", session)
+      if (session.user.role === "ouvrier") {
+        router.push("/dashboard");
+      }
     } else if (status === "unauthenticated") {
-      // Rediriger l'utilisateur vers la page de connexion sur la ligne suivante (/login)
-      router.push("/login")
+      router.push("/login");
     }
-  }, [session, status])
-  
+  }, [session, status, router]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -268,114 +268,118 @@ export default function ChantierDetailPage() {
             <h1 className="text-3xl font-bold tracking-tight">{chantier.nom}</h1>
           </div>
           <div className="flex gap-2">
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Edit className="mr-2 h-4 w-4" />
-                  Modifier
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[525px]">
-                <DialogHeader>
-                  <DialogTitle>Modifier le chantier</DialogTitle>
-                  <DialogDescription>
-                    Modifiez les informations du chantier.
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleEditSubmit}>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="nom" className="text-right">
-                        Nom
-                      </Label>
-                      <Input
-                        id="nom"
-                        name="nom"
-                        value={editedChantier?.nom ?? ""}
-                        onChange={handleEditInputChange}
-                        className="col-span-3"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="description" className="text-right">
-                        Description
-                      </Label>
-                      <Input
-                        id="description"
-                        name="description"
-                        value={editedChantier?.description ?? ""}
-                        onChange={handleEditInputChange}
-                        className="col-span-3"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="date_deb" className="text-right">
-                        Date de début
-                      </Label>
-                      <Input
-                        id="date_deb"
-                        name="date_deb"
-                        type="date"
-                        value={editedChantier?.date_deb ?? ""}
-                        onChange={handleEditInputChange}
-                        className="col-span-3"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="date_fin" className="text-right">
-                        Date de fin
-                      </Label>
-                      <Input
-                        id="date_fin"
-                        name="date_fin"
-                        type="date"
-                        value={editedChantier?.date_fin ?? ""}
-                        onChange={handleEditInputChange}
-                        className="col-span-3"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="adresse" className="text-right">
-                        Adresse
-                      </Label>
-                      <Input
-                        id="adresse"
-                        name="adresse"
-                        value={editedChantier?.adresse ?? ""}
-                        onChange={handleEditInputChange}
-                        className="col-span-3"
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="submit">Enregistrer les modifications</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive">
-                  <Trash className="mr-2 h-4 w-4" />
-                  Supprimer
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Cette action ne peut pas être annulée. Cela supprimera définitivement le chantier
-                    &quot;{chantier.nom}&quot; et toutes les affectations associées.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteChantier}>
-                    Supprimer
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {session?.user.role === "admin" && (
+              <>
+                <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <Edit className="mr-2 h-4 w-4" />
+                      Modifier
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[525px]">
+                    <DialogHeader>
+                      <DialogTitle>Modifier le chantier</DialogTitle>
+                      <DialogDescription>
+                        Modifiez les informations du chantier.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleEditSubmit}>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="nom" className="text-right">
+                            Nom
+                          </Label>
+                          <Input
+                            id="nom"
+                            name="nom"
+                            value={editedChantier?.nom ?? ""}
+                            onChange={handleEditInputChange}
+                            className="col-span-3"
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="description" className="text-right">
+                            Description
+                          </Label>
+                          <Input
+                            id="description"
+                            name="description"
+                            value={editedChantier?.description ?? ""}
+                            onChange={handleEditInputChange}
+                            className="col-span-3"
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="date_deb" className="text-right">
+                            Date de début
+                          </Label>
+                          <Input
+                            id="date_deb"
+                            name="date_deb"
+                            type="date"
+                            value={editedChantier?.date_deb ?? ""}
+                            onChange={handleEditInputChange}
+                            className="col-span-3"
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="date_fin" className="text-right">
+                            Date de fin
+                          </Label>
+                          <Input
+                            id="date_fin"
+                            name="date_fin"
+                            type="date"
+                            value={editedChantier?.date_fin ?? ""}
+                            onChange={handleEditInputChange}
+                            className="col-span-3"
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="adresse" className="text-right">
+                            Adresse
+                          </Label>
+                          <Input
+                            id="adresse"
+                            name="adresse"
+                            value={editedChantier?.adresse ?? ""}
+                            onChange={handleEditInputChange}
+                            className="col-span-3"
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="submit">Enregistrer les modifications</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">
+                      <Trash className="mr-2 h-4 w-4" />
+                      Supprimer
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Cette action ne peut pas être annulée. Cela supprimera définitivement le chantier
+                        &quot;{chantier.nom}&quot; et toutes les affectations associées.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Annuler</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteChantier}>
+                        Supprimer
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
           </div>
         </div>
 

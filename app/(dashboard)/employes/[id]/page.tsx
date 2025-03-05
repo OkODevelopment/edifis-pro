@@ -59,11 +59,13 @@ export default function EmployeDetailPage() {
 
   useEffect(() => {
     if (status === "authenticated") {
+      if (session.user.role !== "admin") {
+        router.push("/dashboard");
+      }
     } else if (status === "unauthenticated") {
-      // Rediriger l'utilisateur vers la page de connexion sur la ligne suivante (/login)
-      router.push("/login")
+      router.push("/login");
     }
-  }, [session, status])
+  }, [session, status, router]);
 
   useEffect(() => {
     const fetchData = async () => {

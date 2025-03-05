@@ -25,8 +25,11 @@ declare module "next-auth" {
   interface User {
     role?: string;
     token?: string;
+    exp?: number;
   }
 }
+
+const TOKEN_TTL = 60 * 60;
 
 // Handler NextAuth avec ton API externe
 const handler = NextAuth({
@@ -56,13 +59,15 @@ const handler = NextAuth({
             console.error("❌ Erreur de connexion - status :", response.status, data.message)
             return null
         }
+        const exp = Math.floor(Date.now() / 1000) + TOKEN_TTL;
     
         return {
             id: data.user.id.toString(),
             name: `${data.user.prenom} ${data.user.nom}`,
             email: data.user.email,
             role: data.user.role,
-            token: data.token
+            token: data.token,
+            exp
         }
     }
     
@@ -70,7 +75,7 @@ const handler = NextAuth({
   ],
   session: {
     strategy: "jwt", // Stocker la session dans un token JWT côté client
-    
+        
   },
   pages: {
     signIn: "/login", // La page de connexion
@@ -80,6 +85,7 @@ const handler = NextAuth({
       if (user) {
         token.role = user.role;       // Ajouter le rôle récupéré via l'API
         token.accessToken = user.token; // Stocker le JWT venant de ton API (optionnel)
+        token.exp = user.exp;         // Stocker la date d'expiration du token
       }
       return token;
     },

@@ -49,12 +49,13 @@ export default function AssignPage() {
 
     useEffect(() => {
         if (status === "authenticated") {
-            console.log("✅ Utilisateur connecté :", session);
+          if (session.user.role === "ouvrier") {
+            router.push("/dashboard");
+          }
         } else if (status === "unauthenticated") {
-            router.push("/login");
+          router.push("/login");
         }
-    }
-    , [session, status]);
+      }, [session, status, router]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -84,7 +85,7 @@ export default function AssignPage() {
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-
+    
         if (!employeeId || !chantierId || !selectedDate || !role) {
             toast({
                 variant: "destructive",
@@ -93,19 +94,26 @@ export default function AssignPage() {
             });
             return;
         }
-
+    
+        // Log the selected date
+        console.log("Selected Date:", selectedDate);
+    
         try {
+            // Format the date to YYYY-MM-DD
+            const formattedDate = new Date(selectedDate.setDate(selectedDate.getDate() + 1)).toISOString().split('T')[0];
+            console.log("Formatted Date:", formattedDate);
+    
             const response = await fetch("http://localhost:8080/api/affectations", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     id_utilisateur: employeeId,
                     id_chantier: chantierId,
-                    date: selectedDate?.toISOString().split('T')[0],
+                    date: formattedDate,
                     role: role,
                 }),
             });
-
+    
             if (response.ok) {
                 setSubmitted(true);
                 toast({
@@ -127,7 +135,7 @@ export default function AssignPage() {
             });
             console.error(error);
         }
-    };
+    };    
 
     return (
         <div className="container py-8">
@@ -190,8 +198,8 @@ export default function AssignPage() {
                                     </Label>
                                     <Calendar
                                         mode="single"
-                                        selected={selectedDate}
-                                        onSelect={setSelectedDate}
+                                        selected={selectedDate ?? undefined}
+                                        onSelect={(day) => setSelectedDate(day ?? null)}
                                         initialFocus
                                     />
                                 </div>

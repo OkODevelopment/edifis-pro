@@ -1,4 +1,4 @@
-"use client"
+"use client" // Ajoutez cette ligne en haut de votre fichier
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -48,11 +48,13 @@ export default function EmployesPage() {
 
   useEffect(() => {
     if (status === "authenticated") {
+      if (session.user.role !== "admin") {
+        router.push("/dashboard");
+      }
     } else if (status === "unauthenticated") {
-      // Rediriger l'utilisateur vers la page de connexion sur la ligne suivante (/login)
-      router.push("/login")
+      router.push("/login");
     }
-  }, [session, status])
+  }, [session, status, router]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -104,11 +106,17 @@ export default function EmployesPage() {
     fetchData()
   }, [toast])
 
-  const filteredEmployes = employes.filter(employe =>
-    employe.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employe.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employe.competences.some(comp => comp.libelle.toLowerCase().includes(searchTerm.toLowerCase()))
-  )
+  const filteredEmployes = employes.filter(employe => {
+    const nom = employe.nom ? employe.nom.toLowerCase() : "";
+    const prenom = employe.prenom ? employe.prenom.toLowerCase() : "";
+    const competences = employe.competences ? employe.competences.map(comp => comp.libelle.toLowerCase()) : [];
+
+    return (
+      nom.includes(searchTerm.toLowerCase()) ||
+      prenom.includes(searchTerm.toLowerCase()) ||
+      competences.some(comp => comp.includes(searchTerm.toLowerCase()))
+    );
+  });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -124,7 +132,7 @@ export default function EmployesPage() {
     })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!newEmploye.nom || !newEmploye.prenom || !newEmploye.email || !newEmploye.password) {
@@ -132,20 +140,31 @@ export default function EmployesPage() {
       return
     }
 
-    fetch("http://localhost:8080/api/users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newEmploye)
-    }).then(res => {
+    try {
+      const res = await fetch("http://localhost:8080/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newEmploye)
+      })
+
       if (res.ok) {
         toast({ title: "Employé créé", description: "L'employé a été ajouté avec succès." })
         setIsDialogOpen(false)
         setNewEmploye({ nom: "", prenom: "", email: "", password: "", competences: [], id_droit: 1 })
-        return fetch("http://localhost:8080/api/users").then(res => res.json()).then(data => setEmployes(data))
+
+        // Option 1: Mettre à jour l'état local
+        const newUser = await res.json()
+        setEmployes(prev => [...prev, newUser])
+
+        // Option 2: Rafraîchir la page
+        // router.refresh()
       } else {
         toast({ variant: "destructive", title: "Erreur", description: "Échec de la création." })
       }
-    })
+    } catch (error) {
+      toast({ variant: "destructive", title: "Erreur", description: "Une erreur s'est produite lors de la création de l'employé." })
+      console.error(error)
+    }
   }
 
   if (loading) {
@@ -175,6 +194,7 @@ export default function EmployesPage() {
                   <select name="id_droit" value={newEmploye.id_droit} onChange={handleInputChange}>
                     <option value={1}>Admin</option>
                     <option value={2}>Chef de chantier</option>
+                    <option value={3}>Ouvrier</option>
                   </select>
                 </div>
                 <div>
@@ -205,9 +225,17 @@ export default function EmployesPage() {
           <Link key={employe.id} href={`/employes/${employe.id}`}>
             <Card>
               <CardHeader>
-                <Avatar><AvatarFallback>{employe.prenom[0]}{employe.nom[0]}</AvatarFallback></Avatar>
+                <Avatar>
+                  <AvatarFallback>
+                    {employe.prenom && employe.nom ? `${employe.prenom[0]}${employe.nom[0]}` : "?"}
+                  </AvatarFallback>
+                </Avatar>
                 <CardTitle>{employe.prenom} {employe.nom}</CardTitle>
-                <CardDescription>{employe.competences.map(c => c.libelle).join(", ") || "Aucune compétence"}</CardDescription>
+                <CardDescription>
+                  {employe.competences && employe.competences.length > 0
+                    ? employe.competences.map(c => c.libelle).join(", ")
+                    : "Aucune compétence"}
+                </CardDescription>
               </CardHeader>
             </Card>
           </Link>
