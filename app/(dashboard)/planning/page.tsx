@@ -1,4 +1,4 @@
-"use client";
+"use client"
 
 import { useState, useEffect } from "react";
 import {
@@ -22,8 +22,27 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
+interface Employe {
+  id: number;
+  nom: string;
+  prenom: string;
+}
+
+interface Chantier {
+  id: number;
+  nom: string;
+}
+
+interface Affectation {
+  id: number;
+  id_utilisateur: number;
+  id_chantier: number;
+  date: string;
+  role?: string;
+}
+
 // Fonction pour récupérer les employés depuis l'API
-async function fetchEmployes(): Promise<any[]> {
+async function fetchEmployes(): Promise<Employe[]> {
   const response = await fetch('http://localhost:8080/api/users');
   if (!response.ok) {
     throw new Error('Erreur lors de la récupération des employés');
@@ -31,9 +50,18 @@ async function fetchEmployes(): Promise<any[]> {
   return response.json();
 }
 
+// Fonction pour récupérer les chantiers depuis l'API
+async function fetchChantiers(): Promise<Chantier[]> {
+  const response = await fetch('http://localhost:8080/api/chantiers');
+  if (!response.ok) {
+    throw new Error('Erreur lors de la récupération des chantiers');
+  }
+  return response.json();
+}
+
 // Fonction pour récupérer les affectations depuis l'API
-async function fetchAffectations(): Promise<any[]> {
-  const response = await fetch('http://localhost:8080/api/plannings');
+async function fetchAffectations(): Promise<Affectation[]> {
+  const response = await fetch('http://localhost:8080/api/affectations');
   if (!response.ok) {
     throw new Error('Erreur lors de la récupération des affectations');
   }
@@ -50,9 +78,9 @@ function CalendarCell({
 }: {
   day: Date;
   currentMonth: Date;
-  affectationsForDay: any[];
+  affectationsForDay: Affectation[];
   onClick: (day: Date) => void;
-  employes: any[];
+  employes: Employe[];
 }) {
   const today = new Date();
   const isToday = isSameDay(day, today);
@@ -87,15 +115,18 @@ function CalendarCell({
 export default function MonthlyCalendar() {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date(2025, 2, 1));
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const [employes, setEmployes] = useState<any[]>([]);
-  const [affectations, setAffectations] = useState<any[]>([]);
+  const [employes, setEmployes] = useState<Employe[]>([]);
+  const [chantiers, setChantiers] = useState<Chantier[]>([]);
+  const [affectations, setAffectations] = useState<Affectation[]>([]);
 
   useEffect(() => {
     async function loadData() {
       try {
         const employesData = await fetchEmployes();
+        const chantiersData = await fetchChantiers();
         const affectationsData = await fetchAffectations();
         setEmployes(employesData);
+        setChantiers(chantiersData);
         setAffectations(affectationsData);
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
@@ -124,7 +155,7 @@ export default function MonthlyCalendar() {
   while (day <= endDate) {
     for (let i = 0; i < 7; i++) {
       const affectationsForDay = affectations.filter((a) =>
-        isSameDay(new Date(a.date_deb), day)
+        isSameDay(new Date(a.date), day)
       );
       days.push(
         <CalendarCell
@@ -148,7 +179,7 @@ export default function MonthlyCalendar() {
 
   const selectedAffectations = selectedDay
     ? affectations.filter((a) =>
-        isSameDay(new Date(a.date_deb), selectedDay)
+        isSameDay(new Date(a.date), selectedDay)
       )
     : [];
 
@@ -205,14 +236,15 @@ export default function MonthlyCalendar() {
               <div className="space-y-2">
                 {selectedAffectations.map((affectation) => {
                   const employe = employes.find(e => e.id === affectation.id_utilisateur);
+                  const chantier = chantiers.find(c => c.id === affectation.id_chantier);
                   return (
                     <div key={affectation.id} className="border-b pb-1">
-                      <p className="font-medium">Chantier : {affectation.chantier.nom}</p>
+                      <p className="font-medium">Chantier : {chantier?.nom}</p>
                       <p className="text-xs text-muted-foreground">
                         Employé : {employe?.prenom} {employe?.nom}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Horaires : {format(new Date(affectation.date_deb), "HH:mm")} - {format(new Date(affectation.date_fin), "HH:mm")}
+                        Rôle : {affectation.role}
                       </p>
                     </div>
                   );

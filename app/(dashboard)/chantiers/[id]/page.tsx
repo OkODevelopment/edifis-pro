@@ -14,23 +14,47 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 
-export default function ChantierDetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const { toast } = useToast()
-  const chantierIdStr = params.id as string
-  const chantierId = parseInt(chantierIdStr)
+interface Employe {
+  id: number;
+  prenom: string;
+  nom: string;
+  competences?: string[];
+}
 
-  const [chantier, setChantier] = useState(null)
-  const [employes, setEmployes] = useState([])
-  const [affectations, setAffectations] = useState([])
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [editedChantier, setEditedChantier] = useState(null)
+interface Affectation {
+  id: number;
+  id_utilisateur: number;
+  id_chantier: number;
+  date: string;
+  role?: string; // Ajout du rôle comme propriété optionnelle
+}
+
+interface Chantier {
+  id: number;
+  nom: string;
+  description?: string;
+  date_deb: string;
+  date_fin?: string;
+  adresse: string;
+}
+
+export default function ChantierDetailPage() {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const { toast } = useToast();
+  const chantierId = parseInt(params.id, 10);
+
+  const [chantier, setChantier] = useState<Chantier | null>(null);
+  const [employes, setEmployes] = useState<Employe[]>([]);
+  const [affectations, setAffectations] = useState<Affectation[]>([]);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editedChantier, setEditedChantier] = useState<Chantier | null>(null);
   const [newAffectation, setNewAffectation] = useState({
     id_utilisateur: "",
-    date: ""
-  })
-  const [isAffectationDialogOpen, setIsAffectationDialogOpen] = useState(false)
+    date: "",
+    role: "" // Ajout du rôle dans l'état initial
+  });
+  const [isAffectationDialogOpen, setIsAffectationDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -39,124 +63,124 @@ export default function ChantierDetailPage() {
           fetch(`http://localhost:8080/api/chantiers/${chantierId}`),
           fetch("http://localhost:8080/api/users"),
           fetch(`http://localhost:8080/api/affectations/chantier/${chantierId}`)
-        ])
+        ]);
 
         if (!chantierRes.ok || !employesRes.ok || !affectationsRes.ok) {
-          throw new Error("Erreur lors de la récupération des données.")
+          throw new Error("Erreur lors de la récupération des données.");
         }
 
-        const chantierData = await chantierRes.json()
-        const employesData = await employesRes.json()
-        const affectationsData = await affectationsRes.json()
+        const chantierData = await chantierRes.json();
+        const employesData = await employesRes.json();
+        const affectationsData = await affectationsRes.json();
 
-        setChantier(chantierData)
-        setEmployes(employesData)
-        setAffectations(affectationsData)
-        setEditedChantier(chantierData)
+        setChantier(chantierData);
+        setEmployes(employesData);
+        setAffectations(affectationsData);
+        setEditedChantier(chantierData);
       } catch (error) {
-        toast({ title: "Erreur", description: "Impossible de charger les données." })
-        console.error(error)
+        toast({ title: "Erreur", description: "Impossible de charger les données." });
+        console.error(error);
       }
-    }
+    };
 
-    fetchData()
-  }, [chantierId, toast])
+    fetchData();
+  }, [chantierId, toast]);
 
   if (!chantier) {
     return (
       <div className="container py-8">
         <h1 className="text-2xl font-bold">Chargement...</h1>
       </div>
-    )
+    );
   }
 
   const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setEditedChantier(prev => ({ ...prev, [name]: value }))
-  }
+    const { name, value } = e.target;
+    setEditedChantier(prev => ({ ...prev, [name]: value } as Chantier));
+  };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     try {
       const response = await fetch(`http://localhost:8080/api/chantiers/${chantierId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editedChantier)
-      })
+      });
 
       if (response.ok) {
-        setIsEditDialogOpen(false)
-        setChantier(editedChantier)
+        setIsEditDialogOpen(false);
+        setChantier(editedChantier);
         toast({
           title: "Chantier mis à jour",
-          description: `Les informations du chantier "${editedChantier.nom}" ont été mises à jour.`,
-        })
+          description: `Les informations du chantier "${editedChantier?.nom}" ont été mises à jour.`,
+        });
       } else {
         toast({
           variant: "destructive",
           title: "Erreur",
           description: "Échec de la mise à jour du chantier.",
-        })
+        });
       }
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Erreur",
         description: "Une erreur s'est produite lors de la mise à jour du chantier.",
-      })
-      console.error(error)
+      });
+      console.error(error);
     }
-  }
+  };
 
   const handleDeleteChantier = async () => {
     try {
       const response = await fetch(`http://localhost:8080/api/chantiers/${chantierId}`, {
         method: "DELETE"
-      })
+      });
 
       if (response.ok) {
         toast({
           title: "Chantier supprimé",
           description: `Le chantier "${chantier.nom}" a été supprimé.`,
-        })
-        router.push("/chantiers")
+        });
+        router.push("/chantiers");
       } else {
         toast({
           variant: "destructive",
           title: "Erreur",
           description: "Échec de la suppression du chantier.",
-        })
+        });
       }
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Erreur",
         description: "Une erreur s'est produite lors de la suppression du chantier.",
-      })
-      console.error(error)
+      });
+      console.error(error);
     }
-  }
+  };
 
   const handleAffectationInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setNewAffectation(prev => ({ ...prev, [name]: value }))
-  }
+    const { name, value } = e.target;
+    setNewAffectation(prev => ({ ...prev, [name]: value }));
+  };
 
   const handleSelectChange = (value: string) => {
-    setNewAffectation(prev => ({ ...prev, id_utilisateur: value }))
-  }
+    setNewAffectation(prev => ({ ...prev, id_utilisateur: value }));
+  };
 
   const handleAffectationSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    if (!newAffectation.id_utilisateur || !newAffectation.date) {
+    if (!newAffectation.id_utilisateur || !newAffectation.date || !newAffectation.role) {
       toast({
         variant: "destructive",
         title: "Erreur de validation",
-        description: "Veuillez sélectionner un employé et une date.",
-      })
-      return
+        description: "Veuillez sélectionner un employé, une date, et un rôle.",
+      });
+      return;
     }
 
     try {
@@ -164,64 +188,64 @@ export default function ChantierDetailPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...newAffectation, id_chantier: chantierId })
-      })
+      });
 
       if (response.ok) {
-        const newAffectationData = await response.json()
-        setAffectations([...affectations, newAffectationData])
-        setNewAffectation({ id_utilisateur: "", date: "" })
-        setIsAffectationDialogOpen(false)
+        const newAffectationData = await response.json();
+        setAffectations([...affectations, newAffectationData]);
+        setNewAffectation({ id_utilisateur: "", date: "", role: "" });
+        setIsAffectationDialogOpen(false);
 
-        const employe = employes.find(e => e.id === parseInt(newAffectation.id_utilisateur))
+        const employe = employes.find(e => e.id === parseInt(newAffectation.id_utilisateur));
         toast({
           title: "Affectation créée",
           description: `${employe?.prenom} ${employe?.nom} a été affecté au chantier pour le ${new Date(newAffectation.date).toLocaleDateString()}.`,
-        })
+        });
       } else {
         toast({
           variant: "destructive",
           title: "Erreur",
           description: "Échec de la création de l'affectation.",
-        })
+        });
       }
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Erreur",
         description: "Une erreur s'est produite lors de la création de l'affectation.",
-      })
-      console.error(error)
+      });
+      console.error(error);
     }
-  }
+  };
 
   const handleDeleteAffectation = async (affectationId: number) => {
     try {
       const response = await fetch(`http://localhost:8080/api/affectations/${affectationId}`, {
         method: "DELETE"
-      })
+      });
 
       if (response.ok) {
-        setAffectations(affectations.filter(a => a.id !== affectationId))
+        setAffectations(affectations.filter(a => a.id !== affectationId));
         toast({
           title: "Affectation supprimée",
           description: "L'affectation a été supprimée avec succès.",
-        })
+        });
       } else {
         toast({
           variant: "destructive",
           title: "Erreur",
           description: "Échec de la suppression de l'affectation.",
-        })
+        });
       }
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Erreur",
         description: "Une erreur s'est produite lors de la suppression de l'affectation.",
-      })
-      console.error(error)
+      });
+      console.error(error);
     }
-  }
+  };
 
   return (
     <div className="container py-8">
@@ -255,7 +279,7 @@ export default function ChantierDetailPage() {
                       <Input
                         id="nom"
                         name="nom"
-                        value={editedChantier?.nom}
+                        value={editedChantier?.nom ?? ""}
                         onChange={handleEditInputChange}
                         className="col-span-3"
                       />
@@ -267,7 +291,7 @@ export default function ChantierDetailPage() {
                       <Input
                         id="description"
                         name="description"
-                        value={editedChantier?.description}
+                        value={editedChantier?.description ?? ""}
                         onChange={handleEditInputChange}
                         className="col-span-3"
                       />
@@ -280,7 +304,7 @@ export default function ChantierDetailPage() {
                         id="date_deb"
                         name="date_deb"
                         type="date"
-                        value={editedChantier?.date_deb}
+                        value={editedChantier?.date_deb ?? ""}
                         onChange={handleEditInputChange}
                         className="col-span-3"
                       />
@@ -293,7 +317,7 @@ export default function ChantierDetailPage() {
                         id="date_fin"
                         name="date_fin"
                         type="date"
-                        value={editedChantier?.date_fin}
+                        value={editedChantier?.date_fin ?? ""}
                         onChange={handleEditInputChange}
                         className="col-span-3"
                       />
@@ -305,7 +329,7 @@ export default function ChantierDetailPage() {
                       <Input
                         id="adresse"
                         name="adresse"
-                        value={editedChantier?.adresse}
+                        value={editedChantier?.adresse ?? ""}
                         onChange={handleEditInputChange}
                         className="col-span-3"
                       />
@@ -428,6 +452,18 @@ export default function ChantierDetailPage() {
                             className="col-span-3"
                           />
                         </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="role" className="text-right">
+                            Rôle
+                          </Label>
+                          <Input
+                            id="role"
+                            name="role"
+                            value={newAffectation.role}
+                            onChange={handleAffectationInputChange}
+                            className="col-span-3"
+                          />
+                        </div>
                       </div>
                       <DialogFooter>
                         <Button type="submit">Ajouter l'affectation</Button>
@@ -446,7 +482,7 @@ export default function ChantierDetailPage() {
               ) : (
                 <div className="space-y-4">
                   {affectations.map((affectation) => {
-                    const employe = employes.find(e => e.id === affectation.id_utilisateur)
+                    const employe = employes.find(e => e.id === affectation.id_utilisateur);
                     return (
                       <div key={affectation.id} className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -466,7 +502,7 @@ export default function ChantierDetailPage() {
                           <Trash className="h-4 w-4 text-muted-foreground" />
                         </Button>
                       </div>
-                    )
+                    );
                   })}
                 </div>
               )}
@@ -499,17 +535,18 @@ export default function ChantierDetailPage() {
                           {affectations
                             .filter(a => a.date === date)
                             .map(affectation => {
-                              const employe = employes.find(e => e.id === affectation.id_utilisateur)
+                              const employe = employes.find(e => e.id === affectation.id_utilisateur);
                               return (
                                 <div key={affectation.id} className="flex items-center justify-between p-3 border-b last:border-0">
                                   <div className="flex items-center gap-2">
                                     <Users className="h-4 w-4 text-muted-foreground" />
                                     <span>{employe?.prenom} {employe?.nom}</span>
                                   </div>
-                                  
-
+                                  <div className="text-sm text-muted-foreground">
+                                    {affectation.role ?? "Rôle non disponible"}
+                                  </div>
                                 </div>
-                              )
+                              );
                             })}
                         </div>
                       </div>
@@ -533,8 +570,8 @@ export default function ChantierDetailPage() {
                 ) : (
                   <div className="space-y-4">
                     {Array.from(new Set(affectations.map(a => a.id_utilisateur))).map(employeId => {
-                      const employe = employes.find(e => e.id === employeId)
-                      const employeAffectations = affectations.filter(a => a.id_utilisateur === employeId)
+                      const employe = employes.find(e => e.id === employeId);
+                      const employeAffectations = affectations.filter(a => a.id_utilisateur === employeId);
 
                       return (
                         <div key={employeId} className="rounded-md border p-4">
@@ -550,6 +587,12 @@ export default function ChantierDetailPage() {
                           <Separator className="my-2" />
                           <div className="grid grid-cols-2 gap-2 mt-2">
                             <div>
+                              <p className="text-sm font-medium">Rôles</p>
+                              <div className="text-sm text-muted-foreground">
+                                {employeAffectations.map(a => a.role).join(", ") ?? "Rôles non disponibles"}
+                              </div>
+                            </div>
+                            <div>
                               <p className="text-sm font-medium">Dates d'affectation</p>
                               <p className="text-sm text-muted-foreground">
                                 {employeAffectations
@@ -559,7 +602,7 @@ export default function ChantierDetailPage() {
                             </div>
                           </div>
                         </div>
-                      )
+                      );
                     })}
                   </div>
                 )}
@@ -569,5 +612,5 @@ export default function ChantierDetailPage() {
         </Tabs>
       </div>
     </div>
-  )
+  );
 }

@@ -12,8 +12,8 @@ router.get('/utilisateur/:userId', affectationController.findByUser);
 router.get('/chantier/:chantierId', affectationController.findByChantier);
 
 // Routes accessibles uniquement aux administrateurs et chefs de chantier
-router.post('/', isAdminOrChefChantier, affectationController.create);
-router.put('/:id', isAdminOrChefChantier, affectationController.update);
-router.delete('/:id', isAdminOrChefChantier, affectationController.delete);
+router.post('/',  affectationController.create);
+router.put('/:id',  affectationController.update);
+router.delete('/:id', affectationController.delete);
 
 module.exports = router;

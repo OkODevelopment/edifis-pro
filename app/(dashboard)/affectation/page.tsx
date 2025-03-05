@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
     Card,
     CardContent,
@@ -20,43 +20,105 @@ import {
     SelectItem,
 } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
+import { useToast } from "@/components/ui/use-toast"
 
-const employesMock = [
-    { id: 1, nom: "Dupont", prenom: "Martin" },
-    { id: 2, nom: "Lefebvre", prenom: "Sophie" },
-    { id: 3, nom: "Moreau", prenom: "Jean" },
-    { id: 4, nom: "Bernard", prenom: "Lucie" },
-    { id: 5, nom: "Petit", prenom: "Thomas" },
-]
+interface Employe {
+  id: number;
+  nom: string;
+  prenom: string;
+}
 
-const chantierOptions = [
-    "Hangar Industriel",
-    "Bureaux Modernes",
-    "Magasin Central",
-    "Entrepôt Logistique",
-]
+interface Chantier {
+  id: number;
+  nom: string;
+}
 
 export default function AssignPage() {
-    const [employeeId, setEmployeeId] = useState("")
-    const [chantier, setChantier] = useState("")
-    const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-    const [horaires, setHoraires] = useState("")
-    const [submitted, setSubmitted] = useState(false)
+    const [employes, setEmployes] = useState<Employe[]>([]);
+    const [chantiers, setChantiers] = useState<Chantier[]>([]);
+    const [employeeId, setEmployeeId] = useState("");
+    const [chantierId, setChantierId] = useState("");
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [role, setRole] = useState("");
+    const [submitted, setSubmitted] = useState(false);
+    const { toast } = useToast();
 
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault()
-        // Ici, vous pouvez envoyer les données à votre API ou serveur.
-        console.log("Employé ID:", employeeId)
-        console.log("Chantier:", chantier)
-        console.log("Date:", selectedDate)
-        console.log("Horaires:", horaires)
-        setSubmitted(true)
-    }
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [employesRes, chantiersRes] = await Promise.all([
+                    fetch("http://localhost:8080/api/users"),
+                    fetch("http://localhost:8080/api/chantiers"),
+                ]);
+
+                if (!employesRes.ok || !chantiersRes.ok) {
+                    throw new Error("Erreur lors de la récupération des données.");
+                }
+
+                const employesData = await employesRes.json();
+                const chantiersData = await chantiersRes.json();
+
+                setEmployes(employesData);
+                setChantiers(chantiersData);
+            } catch (error) {
+                toast({ title: "Erreur", description: "Impossible de charger les données." });
+                console.error(error);
+            }
+        };
+
+        fetchData();
+    }, [toast]);
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+
+        if (!employeeId || !chantierId || !selectedDate || !role) {
+            toast({
+                variant: "destructive",
+                title: "Erreur de validation",
+                description: "Veuillez sélectionner un employé, un chantier, une date et un rôle.",
+            });
+            return;
+        }
+
+        try {
+            const response = await fetch("http://localhost:8080/api/affectations", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id_utilisateur: employeeId,
+                    id_chantier: chantierId,
+                    date: selectedDate?.toISOString().split('T')[0],
+                    role: role,
+                }),
+            });
+
+            if (response.ok) {
+                setSubmitted(true);
+                toast({
+                    title: "Affectation créée",
+                    description: "L'affectation a été créée avec succès.",
+                });
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "Erreur",
+                    description: "Échec de la création de l'affectation.",
+                });
+            }
+        } catch (error) {
+            toast({
+                variant: "destructive",
+                title: "Erreur",
+                description: "Une erreur s'est produite lors de la création de l'affectation.",
+            });
+            console.error(error);
+        }
+    };
 
     return (
         <div className="container py-8">
             <form onSubmit={handleSubmit}>
-                {/* On augmente la taille max de la card pour l'élargir */}
                 <Card className="mx-auto w-full max-w-3xl">
                     <CardHeader>
                         <CardTitle>Assigner un employé</CardTitle>
@@ -66,7 +128,6 @@ export default function AssignPage() {
                     </CardHeader>
 
                     <CardContent>
-                        {/* Mise en page en deux colonnes pour prendre plus de place */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-4">
                                 <div>
@@ -78,7 +139,7 @@ export default function AssignPage() {
                                             <SelectValue placeholder="Sélectionnez un employé" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {employesMock.map((employee) => (
+                                            {employes.map((employee) => (
                                                 <SelectItem
                                                     key={employee.id}
                                                     value={employee.id.toString()}
@@ -94,14 +155,14 @@ export default function AssignPage() {
                                     <Label htmlFor="chantier" className="mb-1">
                                         Chantier
                                     </Label>
-                                    <Select onValueChange={(value) => setChantier(value)}>
+                                    <Select onValueChange={(value) => setChantierId(value)}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Sélectionnez un chantier" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {chantierOptions.map((option, index) => (
-                                                <SelectItem key={index} value={option}>
-                                                    {option}
+                                            {chantiers.map((chantier) => (
+                                                <SelectItem key={chantier.id} value={chantier.id.toString()}>
+                                                    {chantier.nom}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -123,15 +184,15 @@ export default function AssignPage() {
                                 </div>
 
                                 <div>
-                                    <Label htmlFor="horaires" className="mb-1">
-                                        Horaires
+                                    <Label htmlFor="role" className="mb-1">
+                                        Rôle
                                     </Label>
                                     <Input
                                         type="text"
-                                        id="horaires"
-                                        placeholder="ex: 8h00 - 16h00"
-                                        value={horaires}
-                                        onChange={(e) => setHoraires(e.target.value)}
+                                        id="role"
+                                        placeholder="ex: Chef de chantier"
+                                        value={role}
+                                        onChange={(e) => setRole(e.target.value)}
                                     />
                                 </div>
                             </div>
@@ -150,5 +211,5 @@ export default function AssignPage() {
                 </div>
             )}
         </div>
-    )
+    );
 }
