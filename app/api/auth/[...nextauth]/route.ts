@@ -1,5 +1,32 @@
-import NextAuth from "next-auth";
+import NextAuth, { Session, User } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { JWT } from "next-auth/jwt";
+
+declare module "next-auth" {
+  interface Session {
+    user: {
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      role?: string;
+      accessToken?: string;
+    };
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    role?: string;
+    accessToken?: string;
+  }
+}
+
+declare module "next-auth" {
+  interface User {
+    role?: string;
+    token?: string;
+  }
+}
 
 // Handler NextAuth avec ton API externe
 const handler = NextAuth({
@@ -43,6 +70,7 @@ const handler = NextAuth({
   ],
   session: {
     strategy: "jwt", // Stocker la session dans un token JWT côté client
+    
   },
   pages: {
     signIn: "/login", // La page de connexion

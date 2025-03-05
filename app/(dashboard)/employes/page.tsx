@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { Plus, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -27,7 +29,8 @@ type Competence = {
 
 export default function EmployesPage() {
   const { toast } = useToast()
-
+  const router = useRouter()
+  const { data: session, status } = useSession()
   const [employes, setEmployes] = useState<Employe[]>([])
   const [competences, setCompetences] = useState<Competence[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -42,6 +45,14 @@ export default function EmployesPage() {
     competences: [] as number[],
     id_droit: 1 // Valeur par défaut pour "Admin"
   })
+
+  useEffect(() => {
+    if (status === "authenticated") {
+    } else if (status === "unauthenticated") {
+      // Rediriger l'utilisateur vers la page de connexion sur la ligne suivante (/login)
+      router.push("/login")
+    }
+  }, [session, status])
 
   useEffect(() => {
     const fetchData = async () => {

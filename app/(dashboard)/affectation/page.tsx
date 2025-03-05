@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { useToast } from "@/components/ui/use-toast"
+import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 
 interface Employe {
   id: number;
@@ -42,6 +44,17 @@ export default function AssignPage() {
     const [role, setRole] = useState("");
     const [submitted, setSubmitted] = useState(false);
     const { toast } = useToast();
+    const router = useRouter(); 
+    const { data: session, status } = useSession()
+
+    useEffect(() => {
+        if (status === "authenticated") {
+            console.log("✅ Utilisateur connecté :", session);
+        } else if (status === "unauthenticated") {
+            router.push("/login");
+        }
+    }
+    , [session, status]);
 
     useEffect(() => {
         const fetchData = async () => {

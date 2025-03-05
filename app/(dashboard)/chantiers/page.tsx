@@ -9,9 +9,15 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
+import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
+
+
 
 export default function ChantiersPage() {
   const { toast } = useToast()
+  const router = useRouter()
+  const { data: session, status } = useSession()
   const [chantiers, setChantiers] = useState([])
   const [searchTerm, setSearchTerm] = useState("")
   const [newChantier, setNewChantier] = useState({
@@ -23,6 +29,16 @@ export default function ChantiersPage() {
   })
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      console.log("✅ Utilisateur connecté :", session)
+    } else if (status === "unauthenticated") {
+      // Rediriger l'utilisateur vers la page de connexion sur la ligne suivante (/login)
+      router.push("/login")
+    }
+  }, [session, status])
 
   useEffect(() => {
     const fetchChantiers = async () => {

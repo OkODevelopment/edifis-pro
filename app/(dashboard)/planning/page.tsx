@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   format,
   startOfMonth,
@@ -113,11 +115,21 @@ function CalendarCell({
 }
 
 export default function MonthlyCalendar() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date(2025, 2, 1));
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [employes, setEmployes] = useState<Employe[]>([]);
   const [chantiers, setChantiers] = useState<Chantier[]>([]);
   const [affectations, setAffectations] = useState<Affectation[]>([]);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+    } else if (status === "unauthenticated") {
+      // Rediriger l'utilisateur vers la page de connexion sur la ligne suivante (/login)
+      router.push("/login");
+    }
+  }, [session, status]);
 
   useEffect(() => {
     async function loadData() {

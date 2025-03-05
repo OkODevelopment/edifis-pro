@@ -1,9 +1,11 @@
 "use client";
 
+import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { HardHat, Plus, Search, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -44,7 +46,9 @@ async function deleteCompetence(id: number): Promise<void> {
 }
 
 export default function CompetencesPage() {
+  const { data: session, status } = useSession()
   const { toast } = useToast();
+  const router = useRouter()
   const [competences, setCompetences] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [newCompetence, setNewCompetence] = useState("");
@@ -61,6 +65,15 @@ export default function CompetencesPage() {
     }
     loadCompetences();
   }, []);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      console.log("✅ Utilisateur connecté :", session)
+    } else if (status === "unauthenticated") {
+      // Rediriger l'utilisateur vers la page de connexion sur la ligne suivante (/login)
+      router.push("/login")
+    }
+  }, [session, status])
 
   const filteredCompetences = competences.filter(competence =>
     competence.libelle.toLowerCase().includes(searchTerm.toLowerCase())

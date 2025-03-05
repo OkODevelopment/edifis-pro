@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
+import { useSession } from "next-auth/react"
 
 interface Employe {
   id: number;
@@ -43,6 +44,7 @@ export default function ChantierDetailPage() {
   const router = useRouter();
   const { toast } = useToast();
   const chantierId = parseInt(params.id, 10);
+  const { data: session, status } = useSession()
 
   const [chantier, setChantier] = useState<Chantier | null>(null);
   const [employes, setEmployes] = useState<Employe[]>([]);
@@ -56,6 +58,16 @@ export default function ChantierDetailPage() {
   });
   const [isAffectationDialogOpen, setIsAffectationDialogOpen] = useState(false);
 
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      console.log("✅ Utilisateur connecté :", session)
+    } else if (status === "unauthenticated") {
+      // Rediriger l'utilisateur vers la page de connexion sur la ligne suivante (/login)
+      router.push("/login")
+    }
+  }, [session, status])
+  
   useEffect(() => {
     const fetchData = async () => {
       try {

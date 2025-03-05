@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/components/ui/use-toast"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { useSession } from "next-auth/react"
 
 type Competence = {
   id: number
@@ -43,6 +44,7 @@ type Affectation = {
 export default function EmployeDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { data: session, status } = useSession()
   const { toast } = useToast()
   const employeId = parseInt(params.id as string)
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
@@ -54,6 +56,14 @@ export default function EmployeDetailPage() {
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editedEmploye, setEditedEmploye] = useState<Partial<Employe>>({})
+
+  useEffect(() => {
+    if (status === "authenticated") {
+    } else if (status === "unauthenticated") {
+      // Rediriger l'utilisateur vers la page de connexion sur la ligne suivante (/login)
+      router.push("/login")
+    }
+  }, [session, status])
 
   useEffect(() => {
     const fetchData = async () => {

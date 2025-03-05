@@ -1,22 +1,87 @@
-"use client";
+"use client"
 
 import { useSession } from "next-auth/react"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CalendarIcon, Users, Building, AlertTriangle } from "lucide-react"
+import { useRouter } from "next/navigation"
+
+interface Chantier {
+  id: number;
+  nom: string;
+  description?: string;
+  date_deb: string;
+  date_fin?: string;
+  adresse: string;
+  statut: string;
+}
+
+interface Affectation {
+  id: number;
+  id_utilisateur: number;
+  id_chantier: number;
+  date: string;
+  role?: string;
+}
+
+interface Employe {
+  id: number;
+  nom: string;
+  prenom: string;
+}
 
 export default function DashboardPage() {
   const { data: session, status } = useSession()
+  const router = useRouter()
+  const [chantiers, setChantiers] = useState<Chantier[]>([])
+  const [affectations, setAffectations] = useState<Affectation[]>([])
+  const [employes, setEmployes] = useState<Employe[]>([])
 
-  // Affiche la session dans la console pour debug
   useEffect(() => {
     if (status === "authenticated") {
       console.log("✅ Utilisateur connecté :", session)
     } else if (status === "unauthenticated") {
-      console.log("❌ Aucun utilisateur connecté.")
+      // Rediriger l'utilisateur vers la page de connexion sur la ligne suivante (/login)
+      router.push("/login")
     }
   }, [session, status])
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [chantiersRes, affectationsRes, employesRes] = await Promise.all([
+          fetch("http://localhost:8080/api/chantiers"),
+          fetch("http://localhost:8080/api/affectations"),
+          fetch("http://localhost:8080/api/users"),
+        ])
+
+        if (!chantiersRes.ok || !affectationsRes.ok || !employesRes.ok) {
+          throw new Error("Erreur lors de la récupération des données.")
+        }
+
+        const chantiersData = await chantiersRes.json()
+        const affectationsData = await affectationsRes.json()
+        const employesData = await employesRes.json()
+
+        setChantiers(chantiersData)
+        setAffectations(affectationsData)
+        setEmployes(employesData)
+      } catch (error) {
+        console.error("Erreur lors du chargement des données:", error)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  const chantiersActifs = chantiers.filter(chantier => new Date(chantier.date_fin) >= new Date())
+  const affectationsAujourdhui = affectations.filter(affectation => new Date(affectation.date).toDateString() === new Date().toDateString())
+  const conflitsAffectation = affectations.filter(affectation => {
+    const autresAffectations = affectations.filter(a => a.id_utilisateur === affectation.id_utilisateur && a.date === affectation.date)
+    return autresAffectations.length > 1
+  })
+
   return (
     <div className="container py-8">
       <div className="flex flex-col gap-4 md:gap-8">
@@ -29,9 +94,9 @@ export default function DashboardPage() {
               <Building className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">4</div>
+              <div className="text-2xl font-bold">{chantiersActifs.length}</div>
               <p className="text-xs text-muted-foreground">
-                +1 depuis le mois dernier
+                {chantiersActifs.length > 0 ? `+${chantiersActifs.length - chantiers.length} depuis le mois dernier` : "Aucun chantier actif"}
               </p>
             </CardContent>
           </Card>
@@ -43,9 +108,9 @@ export default function DashboardPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">12</div>
+              <div className="text-2xl font-bold">{employes.length}</div>
               <p className="text-xs text-muted-foreground">
-                -3 par rapport à la semaine dernière
+                {employes.length > 0 ? `-${employes.length - chantiers.length} par rapport à la semaine dernière` : "Aucun employé disponible"}
               </p>
             </CardContent>
           </Card>
@@ -57,9 +122,9 @@ export default function DashboardPage() {
               <CalendarIcon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">38</div>
+              <div className="text-2xl font-bold">{affectationsAujourdhui.length}</div>
               <p className="text-xs text-muted-foreground">
-                +5 par rapport à hier
+                {affectationsAujourdhui.length > 0 ? `+${affectationsAujourdhui.length - affectations.length} par rapport à hier` : "Aucune affectation aujourd'hui"}
               </p>
             </CardContent>
           </Card>
@@ -71,9 +136,9 @@ export default function DashboardPage() {
               <AlertTriangle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">2</div>
+              <div className="text-2xl font-bold">{conflitsAffectation.length}</div>
               <p className="text-xs text-muted-foreground">
-                -4 par rapport à la semaine dernière
+                {conflitsAffectation.length > 0 ? `-${conflitsAffectation.length - affectations.length} par rapport à la semaine dernière` : "Aucun conflit d'affectation"}
               </p>
             </CardContent>
           </Card>
@@ -97,34 +162,20 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-3 gap-4 p-4 font-medium">
                     <div>Employé</div>
                     <div>Chantier</div>
-                    <div>Horaires</div>
+                    <div>Rôle</div>
                   </div>
                   <div className="divide-y divide-border rounded-md border">
-                    <div className="grid grid-cols-3 gap-4 p-4">
-                      <div>Martin Dupont</div>
-                      <div>Hangar Industriel - Bordeaux</div>
-                      <div>8h00 - 16h00</div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 p-4">
-                      <div>Sophie Lefebvre</div>
-                      <div>Bureaux Modernes - Toulouse</div>
-                      <div>9h00 - 17h00</div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 p-4">
-                      <div>Jean Moreau</div>
-                      <div>Magasin Central - Lyon</div>
-                      <div>7h30 - 15h30</div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 p-4">
-                      <div>Lucie Bernard</div>
-                      <div>Entrepôt Logistique - Marseille</div>
-                      <div>8h00 - 16h00</div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 p-4">
-                      <div>Thomas Petit</div>
-                      <div>Hangar Industriel - Bordeaux</div>
-                      <div>8h00 - 16h00</div>
-                    </div>
+                    {affectationsAujourdhui.map((affectation) => {
+                      const employe = employes.find(e => e.id === affectation.id_utilisateur)
+                      const chantier = chantiers.find(c => c.id === affectation.id_chantier)
+                      return (
+                        <div key={affectation.id} className="grid grid-cols-3 gap-4 p-4">
+                          <div>{employe?.prenom} {employe?.nom}</div>
+                          <div>{chantier?.nom}</div>
+                          <div>{affectation.role}</div>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </CardContent>
@@ -147,30 +198,14 @@ export default function DashboardPage() {
                     <div>Date de fin prévue</div>
                   </div>
                   <div className="divide-y divide-border rounded-md border">
-                    <div className="grid grid-cols-4 gap-4 p-4">
-                      <div>Hangar Industriel</div>
-                      <div>15 rue des Industries, Bordeaux</div>
-                      <div>01/03/2025</div>
-                      <div>15/06/2025</div>
-                    </div>
-                    <div className="grid grid-cols-4 gap-4 p-4">
-                      <div>Bureaux Modernes</div>
-                      <div>8 avenue des Affaires, Toulouse</div>
-                      <div>15/02/2025</div>
-                      <div>30/05/2025</div>
-                    </div>
-                    <div className="grid grid-cols-4 gap-4 p-4">
-                      <div>Magasin Central</div>
-                      <div>22 rue du Commerce, Lyon</div>
-                      <div>10/01/2025</div>
-                      <div>20/04/2025</div>
-                    </div>
-                    <div className="grid grid-cols-4 gap-4 p-4">
-                      <div>Entrepôt Logistique</div>
-                      <div>5 boulevard Maritime, Marseille</div>
-                      <div>05/03/2025</div>
-                      <div>15/07/2025</div>
-                    </div>
+                    {chantiersActifs.map((chantier) => (
+                      <div key={chantier.id} className="grid grid-cols-4 gap-4 p-4">
+                        <div>{chantier.nom}</div>
+                        <div>{chantier.adresse}</div>
+                        <div>{new Date(chantier.date_deb).toLocaleDateString()}</div>
+                        <div>{chantier.date_fin ? new Date(chantier.date_fin).toLocaleDateString() : "En cours"}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </CardContent>
@@ -192,16 +227,20 @@ export default function DashboardPage() {
                     <div>Date</div>
                   </div>
                   <div className="divide-y divide-border rounded-md border">
-                    <div className="grid grid-cols-3 gap-4 p-4">
-                      <div className="font-medium text-destructive">Pierre Martin</div>
-                      <div>Hangar Industriel / Bureaux Modernes</div>
-                      <div>15/04/2025</div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 p-4">
-                      <div className="font-medium text-destructive">Marie Dubois</div>
-                      <div>Magasin Central / Entrepôt Logistique</div>
-                      <div>22/04/2025</div>
-                    </div>
+                    {conflitsAffectation.map((affectation) => {
+                      const employe = employes.find(e => e.id === affectation.id_utilisateur)
+                      const chantiersEnConflit = affectations
+                        .filter(a => a.id_utilisateur === affectation.id_utilisateur && a.date === affectation.date)
+                        .map(a => chantiers.find(c => c.id === a.id_chantier)?.nom)
+                        .join(", ")
+                      return (
+                        <div key={affectation.id} className="grid grid-cols-3 gap-4 p-4">
+                          <div>{employe?.prenom} {employe?.nom}</div>
+                          <div>{chantiersEnConflit}</div>
+                          <div>{new Date(affectation.date).toLocaleDateString()}</div>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </CardContent>
