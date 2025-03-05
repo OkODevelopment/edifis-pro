@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Calendar, Edit, HardHat, Trash, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -14,148 +14,160 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/components/ui/use-toast"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { useSession } from "next-auth/react"
 
-// Données fictives pour la démonstration
-const employesMock = [
-  { id: 1, nom: "Dupont", prenom: "Martin", competences: ["Maçonnerie", "Charpente"] },
-  { id: 2, nom: "Lefebvre", prenom: "Sophie", competences: ["Électricité", "Plomberie"] },
-  { id: 3, nom: "Moreau", prenom: "Jean", competences: ["Maçonnerie", "Carrelage"] },
-  { id: 4, nom: "Bernard", prenom: "Lucie", competences: ["Peinture", " Plâtrerie"] },
-  { id: 5, nom: "Petit", prenom: "Thomas", competences: ["Charpente", "Couverture"] },
-  { id: 6, nom: "Martin", prenom: "Pierre", competences: ["Électricité", "Domotique"] },
-  { id: 7, nom: "Dubois", prenom: "Marie", competences: ["Plomberie", "Chauffage"] }
-]
+type Competence = {
+  id: number
+  libelle: string
+  niveau?: number
+  selected?: boolean
+}
 
-const competencesMock = [
-  { id: 1, libelle: "Maçonnerie" },
-  { id: 2, libelle: "Charpente" },
-  { id: 3, libelle: "Électricité" },
-  { id: 4, libelle: "Plomberie" },
-  { id: 5, libelle: "Carrelage" },
-  { id: 6, libelle: "Peinture" },
-  { id: 7, libelle: "Plâtrerie" },
-  { id: 8, libelle: "Couverture" },
-  { id: 9, libelle: "Domotique" },
-  { id: 10, libelle: "Chauffage" }
-]
+type Employe = {
+  id: number
+  nom: string
+  prenom: string
+  email: string
+  competences: Competence[]
+}
 
-const chantiersMock = [
-  {
-    id: 1,
-    nom: "Hangar Industriel",
-    description: "Construction d'un hangar industriel de 2000m²",
-    date_deb: "2025-03-01",
-    date_fin: "2025-06-15",
-    adresse: "15 rue des Industries, Bordeaux"
-  },
-  {
-    id: 2,
-    nom: "Bureaux Modernes",
-    description: "Rénovation complète d'un immeuble de bureaux",
-    date_deb: "2025-02-15",
-    date_fin: "2025-05-30",
-    adresse: "8 avenue des Affaires, Toulouse"
-  },
-  {
-    id: 3,
-    nom: "Magasin Central",
-    description: "Construction d'un magasin commercial",
-    date_deb: "2025-01-10",
-    date_fin: "2025-04-20",
-    adresse: "22 rue du Commerce, Lyon"
-  },
-  {
-    id: 4,
-    nom: "Entrepôt Logistique",
-    description: "Agrandissement d'un entrepôt existant",
-    date_deb: "2025-03-05",
-    date_fin: "2025-07-15",
-    adresse: "5 boulevard Maritime, Marseille"
+type Affectation = {
+  id: number
+  date: string
+  chantier: {
+    id: number
+    nom: string
+    adresse: string
   }
-]
-
-const affectationsMock = [
-  { id: 1, id_utilisateur: 1, id_chantier: 1, date: "2025-03-15" },
-  { id: 2, id_utilisateur: 1, id_chantier: 1, date: "2025-03-16" },
-  { id: 3, id_utilisateur: 1, id_chantier: 2, date: "2025-03-20" },
-  { id: 4, id_utilisateur: 2, id_chantier: 1, date: "2025-03-15" },
-  { id: 5, id_utilisateur: 2, id_chantier: 3, date: "2025-03-18" },
-  { id: 6, id_utilisateur: 3, id_chantier: 1, date: "2025-03-16" },
-  { id: 7, id_utilisateur: 3, id_chantier: 4, date: "2025-03-22" },
-  { id: 8, id_utilisateur: 4, id_chantier: 2, date: "2025-03-17" },
-  { id: 9, id_utilisateur: 4, id_chantier: 3, date: "2025-03-25" },
-  { id: 10, id_utilisateur: 5, id_chantier: 1, date: "2025-03-18" },
-  { id: 11, id_utilisateur: 5, id_chantier: 4, date: "2025-03-28" },
-  { id: 12, id_utilisateur: 6, id_chantier: 2, date: "2025-03-19" },
-  { id: 13, id_utilisateur: 6, id_chantier: 3, date: "2025-03-30" },
-  { id: 14, id_utilisateur: 7, id_chantier: 4, date: "2025-03-21" },
-  { id: 15, id_utilisateur: 7, id_chantier: 1, date: "2025-04-02" }
-]
+}
 
 export default function EmployeDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { data: session, status } = useSession()
   const { toast } = useToast()
-  const employeIdStr = params.id as string
-  const employeId = parseInt(employeIdStr)
-  
-  const employe = employesMock.find(e => e.id === employeId)
-  
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [editedEmploye, setEditedEmploye] = useState(employe)
-  const [affectations, setAffectations] = useState(affectationsMock.filter(a => a.id_utilisateur === employeId))
+  const employeId = parseInt(params.id as string)
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
 
-  if (!employe) {
-    return (
-      <div className="container py-8">
-        <h1 className="text-2xl font-bold">Employé non trouvé</h1>
-        <Button onClick={() => router.push("/employes")} className="mt-4">
-          Retour à la liste des employés
-        </Button>
-      </div>
-    )
-  }
+  const [employe, setEmploye] = useState<Employe | null>(null)
+  const [competences, setCompetences] = useState<Competence[]>([])
+  const [affectations, setAffectations] = useState<Affectation[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editedEmploye, setEditedEmploye] = useState<Partial<Employe>>({})
+
+  useEffect(() => {
+    if (status === "authenticated") {
+    } else if (status === "unauthenticated") {
+      // Rediriger l'utilisateur vers la page de connexion sur la ligne suivante (/login)
+      router.push("/login")
+    }
+  }, [session, status])
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true)
+      try {
+        const headers = { Authorization: `Bearer ${token}` }
+
+        const [employeRes, competencesRes, affectationsRes, allCompetencesRes] = await Promise.all([
+          fetch(`http://localhost:8080/api/users/${employeId}`, { headers }),
+          fetch(`http://localhost:8080/api/user-competences/user/${employeId}`, { headers }),
+          fetch(`http://localhost:8080/api/affectations/utilisateur/${employeId}`, { headers }),
+          fetch(`http://localhost:8080/api/competences`, { headers })
+        ])
+
+        if (!employeRes.ok || !competencesRes.ok || !affectationsRes.ok || !allCompetencesRes.ok) {
+          throw new Error("Erreur lors de la récupération des données.")
+        }
+
+        const employeData = await employeRes.json()
+        setEmploye(employeData)
+        setEditedEmploye(employeData)
+
+        const employeCompetences = await competencesRes.json()
+        const allCompetences = await allCompetencesRes.json()
+
+        const enrichedCompetences = allCompetences.map((comp: Competence) => ({
+          ...comp,
+          selected: employeCompetences.some((uc: any) => uc.competence.id === comp.id),
+          niveau: employeCompetences.find((uc: any) => uc.competence.id === comp.id)?.niveau || 1
+        }))
+
+        setCompetences(enrichedCompetences)
+
+        const affectationsData = await affectationsRes.json()
+        setAffectations(affectationsData)
+      } catch (error) {
+        toast({ variant: "destructive", title: "Erreur", description: "Impossible de charger les données." })
+        console.error(error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [employeId, toast, token])
 
   const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setEditedEmploye(prev => ({ ...prev!, [name]: value }))
+    setEditedEmploye(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleCompetenceChange = (competence: string) => {
-    setEditedEmploye(prev => {
-      const competences = prev!.competences.includes(competence)
-        ? prev!.competences.filter(c => c !== competence)
-        : [...prev!.competences, competence]
-      
-      return { ...prev!, competences }
-    })
+  const handleCompetenceChange = (id: number) => {
+    setCompetences(prev =>
+      prev.map(c => (c.id === id ? { ...c, selected: !c.selected } : c))
+    )
   }
 
-  const handleEditSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    // Ici, on simulerait la mise à jour dans la base de données
-    // Pour la démo, on affiche juste un toast
-    
-    setIsEditDialogOpen(false)
-    
-    toast({
-      title: "Employé mis à jour",
-      description: `Les informations de l'employé "${editedEmploye!.prenom} ${editedEmploye!.nom}" ont été mises à jour.`,
-    })
+  const handleDeleteEmploye = async () => {
+    try {
+      const res = await fetch(`http://localhost:8080/api/users/${employeId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        toast({ title: "Employé supprimé", description: "L'employé a été supprimé." })
+        router.push("/employes")
+      } else {
+        toast({ variant: "destructive", title: "Erreur", description: "Impossible de supprimer l'employé." })
+      }
+    } catch (error) {
+      toast({ variant: "destructive", title: "Erreur", description: "Une erreur est survenue." })
+    }
   }
 
-  const handleDeleteEmploye = () => {
-    // Ici, on simulerait la suppression dans la base de données
-    // Pour la démo, on redirige vers la liste des employés
-    
-    toast({
-      title: "Employé supprimé",
-      description: `L'employé "${employe.prenom} ${employe.nom}" a été supprimé.`,
-    })
-    
-    router.push("/employes")
+  const handleSave = async () => {
+    const selectedCompetences = competences
+      .filter(c => c.selected)
+      .map(c => ({ id: c.id, niveau: c.niveau || 1 }))
+
+    const payload = { ...editedEmploye, competences: selectedCompetences }
+
+    try {
+      const res = await fetch(`http://localhost:8080/api/users/${employeId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      })
+
+      if (res.ok) {
+        toast({ title: "Employé mis à jour", description: "Les modifications ont été enregistrées." })
+        setIsEditDialogOpen(false)
+      } else {
+        toast({ variant: "destructive", title: "Erreur", description: "Échec de la mise à jour." })
+      }
+    } catch (error) {
+      toast({ variant: "destructive", title: "Erreur", description: "Une erreur est survenue." })
+    }
   }
+
+  if (loading) return <div className="text-center py-10">Chargement...</div>
+  if (!employe) return <div className="text-center py-10">Employé non trouvé.</div>
 
   return (
     <div className="container py-8">
@@ -184,7 +196,7 @@ export default function EmployeDetailPage() {
                     Modifiez les informations de l'employé.
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleEditSubmit}>
+                <form onSubmit={handleSave}>
                   <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
                       <Label htmlFor="nom" className="text-right">
@@ -193,7 +205,7 @@ export default function EmployeDetailPage() {
                       <Input
                         id="nom"
                         name="nom"
-                        value={editedEmploye?.nom}
+                        value={editedEmploye.nom || ""}
                         onChange={handleEditInputChange}
                         className="col-span-3"
                       />
@@ -205,20 +217,7 @@ export default function EmployeDetailPage() {
                       <Input
                         id="prenom"
                         name="prenom"
-                        value={editedEmploye?.prenom}
-                        onChange={handleEditInputChange}
-                        className="col-span-3"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="password" className="text-right">
-                        Mot de passe
-                      </Label>
-                      <Input
-                        id="password"
-                        name="password"
-                        type="password"
-                        placeholder="Nouveau mot de passe"
+                        value={editedEmploye.prenom || ""}
                         onChange={handleEditInputChange}
                         className="col-span-3"
                       />
@@ -228,18 +227,18 @@ export default function EmployeDetailPage() {
                         Compétences
                       </Label>
                       <div className="col-span-3 grid grid-cols-2 gap-2">
-                        {competencesMock.map((competence) => (
+                        {competences.map((competence) => (
                           <div key={competence.id} className="flex items-center space-x-2">
                             <Checkbox
                               id={`competence-${competence.id}`}
-                              checked={editedEmploye?.competences.includes(competence.libelle)}
-                              onCheckedChange={() => handleCompetenceChange(competence.libelle)}
+                              checked={competence.selected}
+                              onCheckedChange={() => handleCompetenceChange(competence.id)}
                             />
                             <Label
                               htmlFor={`competence-${competence.id}`}
                               className="text-sm font-normal"
                             >
-                              {competence.libelle}
+                              {competence.libelle} (Niveau {competence.niveau})
                             </Label>
                           </div>
                         ))}
@@ -277,7 +276,7 @@ export default function EmployeDetailPage() {
             </AlertDialog>
           </div>
         </div>
-        
+
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
@@ -296,12 +295,12 @@ export default function EmployeDetailPage() {
                 <div>
                   <p className="font-medium">Compétences</p>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {employe.competences.map((competence) => (
+                    {competences.filter(c => c.selected).map((competence) => (
                       <span
-                        key={competence}
+                        key={competence.id}
                         className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                       >
-                        {competence}
+                        {competence.libelle} (Niveau {competence.niveau})
                       </span>
                     ))}
                   </div>
@@ -309,7 +308,7 @@ export default function EmployeDetailPage() {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <CardTitle>Affectations</CardTitle>
@@ -322,20 +321,18 @@ export default function EmployeDetailPage() {
                 <p className="text-sm text-muted-foreground">Aucune affectation pour cet employé.</p>
               ) : (
                 <div className="space-y-4">
-                  {/* Grouper les affectations par chantier */}
-                  {Array.from(new Set(affectations.map(a => a.id_chantier))).map(chantierId => {
-                    const chantier = chantiersMock.find(c => c.id === chantierId)
-                    const chantierAffectations = affectations.filter(a => a.id_chantier === chantierId)
-                    
+                  {Array.from(new Set(affectations.map(a => a.chantier.id))).map(chantierId => {
+                    const chantierAffectations = affectations.filter(a => a.chantier.id === chantierId)
+
                     return (
                       <div key={chantierId} className="rounded-md border p-3">
                         <div className="flex items-center justify-between">
-                          <div className="font-medium">{chantier?.nom}</div>
+                          <div className="font-medium">{chantierAffectations[0].chantier.nom}</div>
                           <div className="text-sm text-muted-foreground">
                             {chantierAffectations.length} jour(s)
                           </div>
                         </div>
-                        <p className="text-sm text-muted-foreground mt-1">{chantier?.adresse}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{chantierAffectations[0].chantier.adresse}</p>
                         <Separator className="my-2" />
                         <div className="text-sm">
                           <span className="font-medium">Dates : </span>
@@ -351,7 +348,7 @@ export default function EmployeDetailPage() {
             </CardContent>
           </Card>
         </div>
-        
+
         <Tabs defaultValue="planning" className="space-y-4">
           <TabsList>
             <TabsTrigger value="planning">Planning</TabsTrigger>
@@ -370,26 +367,22 @@ export default function EmployeDetailPage() {
                   <p className="text-sm text-muted-foreground">Aucune affectation planifiée.</p>
                 ) : (
                   <div className="space-y-4">
-                    {/* Trier les affectations par date */}
                     {affectations
                       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-                      .map(affectation => {
-                        const chantier = chantiersMock.find(c => c.id === affectation.id_chantier)
-                        return (
-                          <div key={affectation.id} className="flex items-center justify-between p-3 border rounded-md">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <div>
-                                <div className="font-medium">{new Date(affectation.date).toLocaleDateString()}</div>
-                                <div className="text-sm text-muted-foreground">{chantier?.nom}</div>
-                              </div>
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {chantier?.adresse}
+                      .map(affectation => (
+                        <div key={affectation.id} className="flex items-center justify-between p-3 border rounded-md">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                              <div className="font-medium">{new Date(affectation.date).toLocaleDateString()}</div>
+                              <div className="text-sm text-muted-foreground">{affectation.chantier.nom}</div>
                             </div>
                           </div>
-                        )
-                      })}
+                          <div className="text-sm text-muted-foreground">
+                            {affectation.chantier.adresse}
+                          </div>
+                        </div>
+                      ))}
                   </div>
                 )}
               </CardContent>
@@ -404,23 +397,22 @@ export default function EmployeDetailPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {/* Rechercher les dates avec plusieurs affectations */}
                 {(() => {
                   const dateCount = affectations.reduce((acc, curr) => {
                     acc[curr.date] = (acc[curr.date] || 0) + 1
                     return acc
                   }, {} as Record<string, number>)
-                  
+
                   const conflictDates = Object.entries(dateCount)
                     .filter(([_, count]) => count > 1)
                     .map(([date]) => date)
-                  
+
                   if (conflictDates.length === 0) {
                     return (
                       <p className="text-sm text-muted-foreground">Aucun conflit détecté.</p>
                     )
                   }
-                  
+
                   return (
                     <div className="space-y-4">
                       {conflictDates.map(date => {
@@ -434,15 +426,12 @@ export default function EmployeDetailPage() {
                               L'employé est affecté à {dateAffectations.length} chantiers différents le même jour.
                             </p>
                             <div className="space-y-2">
-                              {dateAffectations.map(affectation => {
-                                const chantier = chantiersMock.find(c => c.id === affectation.id_chantier)
-                                return (
-                                  <div key={affectation.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
-                                    <div className="font-medium">{chantier?.nom}</div>
-                                    <div className="text-sm text-muted-foreground">{chantier?.adresse}</div>
-                                  </div>
-                                )
-                              })}
+                              {dateAffectations.map(affectation => (
+                                <div key={affectation.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                                  <div className="font-medium">{affectation.chantier.nom}</div>
+                                  <div className="text-sm text-muted-foreground">{affectation.chantier.adresse}</div>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         )

@@ -1,25 +1,34 @@
-import NextAuth from "next-auth"
-import CredentialsProvider from "next-auth/providers/credentials"
+import NextAuth, { Session, User } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { JWT } from "next-auth/jwt";
 
-// Normalement, on utiliserait une vraie base de données ici
-// Ceci est juste pour la démonstration
-const users = [
-  {
-    id: "1",
-    name: "Admin",
-    email: "admin@edificepro.com",
-    password: "admin123",
-    role: "admin",
-  },
-  {
-    id: "2",
-    name: "User",
-    email: "user@edificepro.com",
-    password: "user123",
-    role: "user",
-  },
-]
+declare module "next-auth" {
+  interface Session {
+    user: {
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      role?: string;
+      accessToken?: string;
+    };
+  }
+}
 
+declare module "next-auth/jwt" {
+  interface JWT {
+    role?: string;
+    accessToken?: string;
+  }
+}
+
+declare module "next-auth" {
+  interface User {
+    role?: string;
+    token?: string;
+  }
+}
+
+// Handler NextAuth avec ton API externe
 const handler = NextAuth({
   providers: [
     CredentialsProvider({
@@ -29,45 +38,59 @@ const handler = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null
+        console.log("📩 Credentials reçus :", credentials)
+    
+        const response = await fetch("http://localhost:8080/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                email: credentials?.email,
+                password: credentials?.password
+            })
+        })
+    
+        const data = await response.json()
+        console.log("🛬 Réponse de l'API backend :", data)
+    
+        if (!response.ok) {
+            console.error("❌ Erreur de connexion - status :", response.status, data.message)
+            return null
         }
-
-        const user = users.find(user => user.email === credentials.email)
-
-        if (user && user.password === credentials.password) {
-          return {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-          }
+    
+        return {
+            id: data.user.id.toString(),
+            name: `${data.user.prenom} ${data.user.nom}`,
+            email: data.user.email,
+            role: data.user.role,
+            token: data.token
         }
-
-        return null
-      },
+    }
+    
     }),
   ],
   session: {
-    strategy: "jwt",
+    strategy: "jwt", // Stocker la session dans un token JWT côté client
+    
   },
   pages: {
-    signIn: "/login",
+    signIn: "/login", // La page de connexion
   },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = user.role
+        token.role = user.role;       // Ajouter le rôle récupéré via l'API
+        token.accessToken = user.token; // Stocker le JWT venant de ton API (optionnel)
       }
-      return token
+      return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.role = token.role
+        session.user.role = token.role;        // Ajouter le rôle dans la session
+        session.user.accessToken = token.accessToken; // Ajouter le token dans la session
       }
-      return session
+      return session;
     },
   },
-})
+});
 
-export { handler as GET, handler as POST }
+export { handler as GET, handler as POST };
