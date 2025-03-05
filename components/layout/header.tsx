@@ -6,49 +6,67 @@ import { Building, Calendar, HardHat, LogOut, Menu, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
-import { signOut } from "next-auth/react"
+import { signOut, useSession } from "next-auth/react"
 
 export function Header() {
-  const pathname = usePathname()
+  const pathname = usePathname();
+  const { data: session } = useSession();
 
-  const routes = [
+  const allRoutes = [
     {
       href: "/dashboard",
       label: "Tableau de bord",
       icon: <Calendar className="h-5 w-5 mr-2 ml-10" />,
-      active: pathname === "/dashboard",
     },
     {
       href: "/planning",
       label: "Calendrier",
       icon: <Calendar className="h-5 w-5 mr-2" />,
-      active: pathname === "/planning ",
     },
     {
       href: "/affectation",
       label: "Affectation",
       icon: <Users className="h-5 w-5 mr-2" />,
-      active: pathname === "/affectation ",
     },
     {
       href: "/chantiers",
       label: "Chantiers",
       icon: <Building className="h-5 w-5 mr-2" />,
-      active: pathname === "/chantiers",
     },
     {
       href: "/employes",
       label: "Employés",
       icon: <Users className="h-5 w-5 mr-2" />,
-      active: pathname === "/employes",
     },
     {
       href: "/competences",
       label: "Compétences",
       icon: <HardHat className="h-5 w-5 mr-2" />,
-      active: pathname === "/competences",
     },
-  ]
+  ];
+
+  const getFilteredRoutes = () => {
+    if (!session) return [];
+
+    const { role } = session.user;
+
+    switch (role) {
+      case "ouvrier":
+        return allRoutes.filter(route =>
+          ["/dashboard", "/planning"].includes(route.href)
+        );
+      case "chef de chantier":
+        return allRoutes.filter(route =>
+          !["/employes", "/competences"].includes(route.href)
+        );
+      case "admin":
+        return allRoutes;
+      default:
+        return [];
+    }
+  };
+
+  const routes = getFilteredRoutes();
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background">
@@ -69,15 +87,15 @@ export function Header() {
                     href={route.href}
                     className={cn(
                       "flex items-center px-3 py-2 text-lg font-medium rounded-md hover:bg-accent hover:text-accent-foreground",
-                      route.active ? "bg-accent text-accent-foreground" : ""
+                      pathname === route.href ? "bg-accent text-accent-foreground" : ""
                     )}
                   >
                     {route.icon}
                     {route.label}
                   </Link>
                 ))}
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   className="flex items-center justify-start px-3 py-2 text-lg font-medium rounded-md hover:bg-accent hover:text-accent-foreground"
                   onClick={() => signOut()}
                 >
@@ -98,7 +116,7 @@ export function Header() {
                 href={route.href}
                 className={cn(
                   "flex items-center transition-colors hover:text-foreground/80",
-                  route.active ? "text-foreground font-medium" : "text-foreground/60"
+                  pathname === route.href ? "text-foreground font-medium" : "text-foreground/60"
                 )}
               >
                 {route.icon}
@@ -108,8 +126,8 @@ export function Header() {
           </nav>
         </div>
         <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
             onClick={() => signOut()}
           >
