@@ -11,7 +11,7 @@ Thumbs.db
 *.swo
 
 # Environment variables
-.env
+edifis-pro-back/.env
 .env.local
 .env.development.local
 .env.test.local
@@ -22,4 +22,3 @@ dist/
 out/
 build/
 .next/
-
